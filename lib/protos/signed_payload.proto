@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+import "identifiers.proto";
+
+enum LicksSignatureScheme {
+    UNINITIALIZED_LICKS_SIGNATURE_SCHEME = 0;
+    LICKS_SIGNATURE_SCHEME_HYBRID_ED25519_FALCON512 = 1;
+    OPENMLS_ECDSA_SECP256R1_SHA256 = 2;
+    OPENMLS_ECDSA_SECP384R1_SHA384 = 3;
+    OPENMLS_ECDSA_SECP521R1_SHA512 = 4;
+    OPENMLS_ED25519 = 5;
+    OPENMLS_ED448 = 6;
+}
+
+message LicksSignaturePayload {
+    LicksSignatureScheme scheme = 1;
+    bytes bytes = 2;
+}
+
+message DeviceSignature {
+    DeviceID signer = 1;
+    LicksSignaturePayload payload = 2;
+}
+
+message AccountSignature {
+    AccountID signer = 1;
+    LicksSignaturePayload payload = 2;
+}

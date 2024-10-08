@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+import "identifiers.proto";
+
+message Content {
+    oneof inner {
+        string basic_text = 1;
+    }
+}
+
+message ApplicationMessage {
+    bytes client_timestamp = 1;
+    bytes sender_server = 2;
+    AccountID sender_account_id = 3;
+    uint32 version = 4;
+    Content content = 5;
+}

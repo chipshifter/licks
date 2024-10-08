@@ -1,0 +1,161 @@
+:root {
+    font-family: Helvetica, Arial, sans-serif;
+    font-size: 16px;
+    line-height: 24px;
+    font-weight: 400;
+
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+
+    --primary: #e4ed3e;
+    --secondary: #bc79f3;
+    --third: #38e541;
+
+    --element-foreground: #f4ede8;
+    --element-background: #f2e9e1;
+    --foreground: #fffaf3;
+    --background: #faf4ed;
+    --contrast: rgb(255, 255, 255);
+
+    --text: #575279;
+    --text-dark: #000000;
+
+    color: var(--text);
+}
+
+html {
+    width: 100%;
+    height: 100%;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    height: 100%;
+    min-width: min-content;
+    overflow: hidden;
+
+    margin: 0;
+}
+
+body>div#main {
+    height: 100%;
+    width: 100%;
+
+    display: flex;
+    background-color: var(--background);
+}
+
+div.loading {
+    height: 100%;
+    width: 100%;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    background-color: var(--background);
+}
+
+div.tabs {
+    width: 100%;
+    max-width: 400px;
+    height: 100%;
+
+    background-color: var(--foreground);
+}
+
+div.panel {
+    background-color: var(--background);
+    border-left: 4px dashed var(--element-foreground);
+    height: 100%;
+    width: 100%;
+}
+
+div.tabs > div.tab-buttons {
+    display: flex;
+    align-items: stretch;
+}
+
+div.tab-buttons > div {
+    flex-grow: 1;
+    height: 80px;
+    margin: 0;
+    padding: 0;
+    border-radius: 0 0 40px 40px;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+}
+
+.group-tab-button {
+    display: flex;
+    box-sizing: border-box;
+    width: 100%;
+    max-height: 200px;
+    overflow: none;
+    align-items: center;
+    gap: 8px;
+    padding: 12px;
+}
+
+.group-tab-button.selected {
+    background-color: var(--primary);
+}
+
+.group-tab-button > h2 {
+    font-weight: 900;
+}
+
+/* chat panel */
+.chat-panel {
+    width: 100%;
+    height: 100%;
+
+    display: flex;
+    flex-direction: column;
+    justify-content: end;
+    align-items: stretch;
+}
+
+.chat-panel > .messages {
+    overflow-y: scroll;
+
+    display: flex;
+    flex-direction: column;
+}
+
+.chat-panel > .chat-input {
+    border-top: 4px solid var(--element-foreground);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    max-width: 100%;
+    height: 40px;
+    padding: 8px;
+    gap: 4px;
+}
+
+.chat-panel > .chat-input > .composer {
+    height: 100%;
+    flex-grow: 1;
+    margin: 0;
+    padding: 0;
+    border-radius: 10px;
+    border: 2px solid var(--element-background);
+}
+
+.chat-panel > .chat-input > div {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    aspect-ratio: 1;
+    width: auto;
+}

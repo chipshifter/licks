@@ -1,0 +1,159 @@
+(*
+    Symbolic verification of the blinded address protocol
+
+    This was just made for fun and I might go as far to say
+    it has no security value.
+
+    We try to prove two main things:
+     1. An attacker can forge messages. This gives deniability
+     Note that the server is not trusted and messages are verified 
+     client-side, but this is out of scope of this verification.
+     2. A Dolev-Yao attacker cannot retrieve the "group secret" gS.
+*)
+
+(* MLS group secret. It is epoch dependant but we will not model it. *)
+type mls_secret.
+fun encodeMlsSecret(mls_secret): bitstring [data, typeConverter].
+
+(* A cryptographic hash function. Modeled as a simple random oracle. *)
+fun h(bitstring) : bitstring.
+
+(* Blinded address *)
+type blinded_address.
+type blinded_address_secret.
+
+(* Generate the blinded address secret from a given group secret *)
+fun decode_BA_secret(blinded_address_secret): bitstring [data, typeConverter].
+fun encode_BA_secret(bitstring): blinded_address_secret [data, typeConverter].
+equation forall b: bitstring; decode_BA_secret(encode_BA_secret(b)) = b.
+equation forall b: blinded_address_secret; encode_BA_secret(decode_BA_secret(b)) = b.
+
+event BlindedAddressGenerated(blinded_address, blinded_address_secret).
+event BlindedAddressSecretGenerated(blinded_address_secret, mls_secret).
+
+(* Blinded address secret = HKDF of mls secret with publicly known fixed salt and info *)
+type salt.
+type info.
+const none_salt : salt.
+const info_blinded_address : info.
+fun hkdf(bitstring, salt, info) : bitstring.
+
+letfun GenerateBlindedSecret(gS: mls_secret) = 
+    let baSecret = encode_BA_secret(hkdf(encodeMlsSecret(gS), none_salt, info_blinded_address)) in
+    event BlindedAddressSecretGenerated(baSecret, gS);
+    baSecret.
+
+(* Blinded address (public) = Hash of blinded address secret *)
+fun bitstring_to_blinded_address(bitstring): blinded_address [data, typeConverter].
+letfun GenerateBlindedPublic(baS: blinded_address_secret) = 
+    let ba = bitstring_to_blinded_address(h(decode_BA_secret(baS))) in
+    event BlindedAddressGenerated(ba, baS);
+    ba.
+
+(* 
+    Protocol
+*)
+
+type client.
+(* Alice, Bob, Charlie *)
+free A, B, C: client.
+
+
+free server: channel.
+(* Some attacker channel that may be able to intercept client secrets *)
+free att: channel.
+free cl: channel [private].
+
+(* A basic message table for the server. *)
+table messages(blinded_address, bitstring).
+
+event ClientSend(client, blinded_address, bitstring).
+event ClientReceive(client, blinded_address).
+event ServerSend(channel, blinded_address, bitstring).
+event ServerSendOk(channel, blinded_address, bitstring).
+event ServerReceive(channel, blinded_address, blinded_address_secret).
+event ServerReceiveOk(channel, blinded_address, blinded_address_secret, bitstring).
+
+(* Someone other than the group members gained knowledge of the blinded address secret. *)
+event BlindedSecretCompromised(blinded_address, blinded_address_secret).
+(* Someone other than the group members gained knowledge of the blinded address secret. *)
+event GroupSecretCompromised(mls_secret).
+(* Someone other than the group members gained knowledge of the blinded address secret. *)
+event RotatedGroupSecret(mls_secret, blinded_address, blinded_address_secret, mls_secret, blinded_address, blinded_address_secret).
+
+(* Send messages *)
+let ProcessClientSend (cl: client, grS: mls_secret, m: bitstring) = 
+    let blindedAddressSecret = GenerateBlindedSecret(grS) in
+    let blindedAddressPublic = GenerateBlindedPublic(blindedAddressSecret) in
+    event BlindedAddressGenerated(blindedAddressPublic, blindedAddressSecret);
+    event ClientSend(cl, blindedAddressPublic, m);
+    out(server, (blindedAddressPublic, blindedAddressSecret, m)).
+
+let ProcessServerSend = 
+    in(server, (baP: blinded_address, baS: blinded_address_secret, m: bitstring));
+    event ServerSend(server, baP, m);
+    if GenerateBlindedPublic(baS) = baP then (
+        event BlindedAddressGenerated(baP, baS);
+        event BlindedSecretCompromised(baP, baS);
+        event ServerSendOk(server, baP, m);
+        insert messages(baP, m)
+    ).
+
+(* Retrieve messages from queue *)
+let ProcessClientReceive (cl: client, grS: mls_secret) = 
+    let blindedAddressSecret = GenerateBlindedSecret(grS) in
+    let blindedAddressPublic = GenerateBlindedPublic(blindedAddressSecret) in
+    event BlindedAddressGenerated(blindedAddressPublic, blindedAddressSecret);
+    event ClientReceive(cl, blindedAddressPublic);
+    out(server, (blindedAddressPublic, blindedAddressSecret));
+    in (server, m: bitstring).
+
+let ProcessServerReceive = 
+    in(server, (baP: blinded_address, baS: blinded_address_secret));
+    event ServerReceive(server, baP, baS);
+    if GenerateBlindedPublic(baS) = baP then (
+        event BlindedAddressGenerated(baP, baS);
+        get messages(=baP, m) in
+        event BlindedSecretCompromised(baP, baS);
+        event ServerReceiveOk(server, baP, baS, m);
+        out (server, m)
+    ).
+
+
+(* Any message (bytes) *)
+free message: bitstring.
+(* Any group secret, which the attacker does not have *)
+free gS: mls_secret [private].
+
+(* query: An attacker can't retrieve the group secret *)
+query attacker(gS).
+
+(* 
+    query: 
+        - Any successful request to the server compromises the blinded address + secret.
+        - Deniability: all you need to send/receive messages is the blinded address and the blinded address secret.
+          The MLS group secret is not needed.
+*)
+query ba: blinded_address, baS: blinded_address_secret, m: bitstring;
+    event(ServerSendOk(server, ba, m)) && event(BlindedAddressGenerated(ba, baS)) ==> 
+    (event(BlindedSecretCompromised(ba, baS))).
+
+query ba: blinded_address, baS: blinded_address_secret, m: bitstring;
+    event(ServerReceiveOk(server, ba, baS, m)) && event(BlindedAddressGenerated(ba, baS)) ==> 
+    (event(BlindedSecretCompromised(ba, baS))).
+
+(* 
+    query: Does the message we receive necessarily come from a legitimate client (i.e. not an attacker)?
+
+    This query is false => An attacker is able to forge messages. This provides deniability.
+*)
+query ba: blinded_address, baS: blinded_address_secret, m: bitstring, c: client;
+    event(ServerReceiveOk(server, ba, baS, m)) ==> event(ClientSend(c, ba, m)).
+
+process
+  ( 
+      !ProcessClientSend(A, gS, message)
+    | !ProcessServerSend
+    | !ProcessClientReceive(B, gS)
+    | !ProcessServerReceive
+  )

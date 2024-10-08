@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+import "identifiers.proto";
+import "credentials.proto";
+
+message RegistrationService {
+    oneof stage {
+        Stage1 stage_one = 1;
+        Stage2 stage_two = 2;
+        Stage3 stage_three = 3;
+    }
+}
+
+message Stage1 {
+    oneof inner {
+        bytes here_is_my_account_public_key = 1;
+        AccountID here_is_your_account_id = 2;
+    }
+}
+
+message Stage2 {
+    Certificate here_is_my_account_certificate = 1;
+}
+
+message Stage3 {
+    CertificateChain here_is_my_certificate_chain = 1;
+    bytes username = 2;
+}

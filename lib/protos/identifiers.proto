@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+message DeviceID {
+    bytes uuid = 1;
+}
+
+message AccountID {
+    bytes uuid = 1;
+}
+
+message GroupID {
+    bytes uuid = 1;
+}

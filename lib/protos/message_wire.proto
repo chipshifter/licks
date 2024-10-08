@@ -1,0 +1,111 @@
+syntax = "proto3";
+
+import "empty.proto";
+import "identifiers.proto";
+import "signed_payload.proto";
+import "credentials.proto";
+import "registration.proto";
+
+message ChatServiceMessage {
+    message BlindedAddressSecret {
+        bytes secret = 1;
+        bytes public = 2;
+    }
+
+    message GetMessageRequest {
+        BlindedAddressSecret blinded_address = 1;
+        bytes delivery_id = 2;
+    }
+
+    message MlsMessage {
+        bytes delivery_id = 1;
+        bytes body = 2;
+    }
+
+    message SendMessageRequest {
+        BlindedAddressSecret blinded_address = 1;
+        bytes mls_message_out = 2;
+    }
+
+    message StartListeningRequest {
+        bytes listener_id = 1;
+        BlindedAddressSecret blinded_address = 2;
+    }
+
+
+    message StopListening {
+        bytes listener_id = 1;
+    }
+
+    oneof inner {
+        GetMessageRequest retreive_queue = 2;
+        StartListeningRequest subscribe_to_address = 3;
+        StopListening stop_listening = 4;
+        MlsMessage mls_message = 5;
+        uint64 queue_done = 6;
+        Empty queue_empty = 7;
+        SendMessageRequest send_message = 8;
+        bytes delivered = 9;
+    }
+}
+
+
+enum LicksApiError {
+    UNINITIALIZED_LICKS_ERROR = 0;
+    INVALID_CREDENTIALS = 1;
+    INVALID_OPERATION = 2;
+    DECODE_ERROR = 3;
+    INTERNAL_ERROR = 4;
+    CONNECTION_IS_CLOSED = 5;
+    UNKNOWN_ERROR = 6;
+    INVALID_REQUEST = 7;
+}
+
+enum EmptyMessageBody {
+    IGNORE = 0;
+    GET_CHALLENGE = 1;
+    OK = 2;
+    BYE = 3;
+}
+
+message KeyPackages {
+    repeated bytes inner = 1;
+}
+
+message AuthenticatedChannelMessage {
+    oneof inner {
+        bytes set_username = 1;
+        bytes remove_username = 2;
+        Empty username_is_already_yours = 3;
+        Empty username_is_already_taken = 4;
+        KeyPackages upload_key_packages = 5;    
+        Empty key_package_already_uploaded = 6;
+    }
+}
+
+message UnauthenticatedChannelMessage {
+    oneof inner {
+        RegistrationService registration = 1;
+        AccountID get_key_package = 2;
+        bytes here_is_key_package = 3;
+        Empty no_key_package = 4;
+        bytes get_account_from_username = 5;
+        AccountID here_is_account = 6;
+        ChatServiceMessage chat_service = 7;
+        Empty no_account = 8;
+    }
+}
+
+message LicksMessageWire {
+    optional bytes request_id = 1;
+    oneof licks_message_body {
+        LicksApiError error = 2;
+        AuthenticatedChannelMessage authenticated = 4;
+        UnauthenticatedChannelMessage unauthenticated = 5;
+        bytes challenge = 6;
+        AuthenticationChallengePayload challenge_response = 7;
+        bytes ping = 8;
+        bytes pong = 9;
+        EmptyMessageBody empty = 10;
+    }
+}

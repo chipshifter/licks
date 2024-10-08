@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+
+<head>
+    <link rel="stylesheet" type="text/css" href="styles.css" />
+
+    <style>
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: fit-content;
+            height: 100vh;
+            overflow: hidden;
+            background-color: var(--base);
+
+            color: white;
+            font-family: Arial, Helvetica, sans-serif;
+        }
+
+        main {
+            width: 900px;
+            height: 600px;
+            display: flex;
+            align-items: stretch;
+            justify-content: start;
+            border-collapse: separate;
+            border: 2px solid var(--purple-dark);
+            border-radius: 20px;
+            overflow: hidden;
+        }
+
+
+        .menu {
+            width: 400px;
+            height: 100%;
+            display: flex;
+            border-right: 6px solid var(--surface0);
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .menu-panel {
+            flex-grow: 1;
+            width: 100%;
+            height: 100%;
+            background-color: var(--surface1);
+        }
+
+        .contact {
+            width: 100%;
+            height: 70px;
+            display: flex;
+            align-items: center;
+            justify-content: baseline;
+            padding: 10px;
+            gap: 16px;
+            border-bottom: 1px solid var(--surface0);
+        }
+
+        .contact>img {
+            width: 50px;
+            height: 50px;
+            border-radius: 14px;
+            padding: 10px;
+        }
+
+        .buttons>div {
+            padding: 6px;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: baseline;
+        }
+
+        .buttons>div>img {
+            width: 40px;
+            height: 40px;
+        }
+
+        .buttons>div.selected {
+            background-color: var(--surface1);
+        }
+
+
+        .buttons {
+            display: flex;
+            align-items: stretch;
+            height: 80px;
+            width: 100%;
+
+            background-color: var(--surface2);
+            border-bottom: 2px solid var(--purple);
+        }
+
+        .contact.selected {
+            border: 6px solid var(--surface0);
+            border-right: 0;
+        }
+
+        .purple {
+            color: var(--purple);
+        }
+
+        .green {
+            color: var(--green);
+        }
+
+        .yellow {
+            color: var(--yellow);
+        }
+
+        .panel {
+            flex-grow: 1;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .composer {
+            background-color: var(--surface0);
+            width: 100%;
+            height: 50px;
+        }
+
+        .messages {
+            background-color: var(--surface0);
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column-reverse;
+        }
+
+        .message {
+            padding: 10px;
+            max-width: 100%;
+            min-height: 60px;
+            display: flex;
+            align-items: self-start;
+            gap: 12px;
+        }
+
+        .message:hover {
+            background-color: var(--surface1);
+            transition: background-color 0.05s cubic-bezier(0.215, 0.610, 0.355, 1);
+        }
+
+        .message p:hover {
+            background-color: var(--surface2);
+            transition: background-color 0.05s cubic-bezier(0.215, 0.610, 0.355, 1);
+        }
+
+        .text {
+            width: 100%;
+        }
+
+        .text > p {
+            width: 100%;
+        }
+
+        .profile {
+            display: flex;
+            flex-direction: column;
+            align-items: baseline;
+            justify-content: center;
+            gap: 3px;
+        }
+
+        .author {
+            text-shadow: 0 0 10px black;
+        }
+
+        .profile>b {
+            font-size: x-small;
+            text-shadow: 0 0 6px black;
+        }
+
+        .profile>img {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+        }
+
+        .text.white {
+            border-inline-start: 4px solid #499fff;
+        }
+
+        .text.red {
+            border-inline-start: 4px solid red;
+        }
+
+        .text.green {
+            border-inline-start: 4px solid greenyellow;
+        }
+
+        .text {
+            border-radius: 4px;
+        }
+
+        .text>p {
+            margin: 2px;
+            margin-inline-start: 8px;
+            color: white;
+        }
+
+        .reply.white {
+            border-inline-start: 2px solid var(--yellow);
+        }
+
+        .replying {
+            margin-inline-start: 8px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .replying>p {
+            width: 100%;
+            margin: 0;
+            padding: 2px;
+            margin-top: 3px;
+        }
+
+        .replying>img {
+            width: 16px;
+            height: 16px;
+            padding: 0;
+            margin: 0;
+        }
+
+        .reply > p {
+            width: 90%;
+        }
+
+        .origin {
+            margin: 0;
+            margin-inline-start: 6px;
+            padding-inline-start: 6px;
+            border-radius: 2px;
+        }
+
+        .origin.red {
+            border-inline-start: 2px solid red;
+        }
+
+        .origin.white {
+            border-inline-start: 2px solid #499fff;
+        }
+
+        .origin.green {
+            border-inline-start: 2px solid greenyellow;
+        }
+
+        .author.red {
+            color: red;
+        }
+
+        .author.green {
+            color: greenyellow;
+        }
+
+        .author.white {
+            color: #499fff;
+        }
+
+        .origin.red>.author {
+            color: red;
+        }
+
+        .origin.white {
+            border-inline-start: 2px solid #499fff;
+        }
+
+        .origin.white>.author {
+            color: #499fff;
+        }
+
+        .origin.green>.author {
+            color: greenyellow;
+        }
+
+        .message .content {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            width: 100%;
+        }
+
+        .message.outgoing {
+            direction: rtl;
+        }
+    </style>
+</head>
+
+<body>
+    <main>
+        <div class="menu">
+            <div class="buttons">
+                <div class="purple">
+                    <img src="groups.png">
+                    Groups
+                </div>
+                <div class="yellow selected">
+                    <img src="contacts.png">
+                    Besties
+                </div>
+                <div class="green">
+                    <img src="settings.png">
+                    Settings
+                </div>
+            </div>
+            <div class="menu-panel">
+                <div class="contact">
+                    <img src="pfp/1.jpeg" />
+                    <b>Wiwi</b>
+                </div>
+                <div class="contact selected">
+                    <img src="pfp/2.jpeg" />
+                    <b>Wawa</b>
+                </div>
+                <div class="contact">
+                    <img src="pfp/3.jpeg" />
+                    <b>Wewe</b>
+                </div>
+                <div class="contact">
+                    <img src="pfp/4.jpeg" />
+                    <b>Wowo</b>
+                </div>
+                <div class="contact">
+                    <img src="pfp/5.jpeg" />
+                    <b>Wuwu</b>
+                </div>
+                <div class="contact">
+                    <img src="pfp/6.jpeg" />
+                    <b>Wywy</b>
+                </div>
+            </div>
+        </div>
+        <div class="panel">
+            <div class="messages">
+                <div class="message outgoing">
+                    <div class="profile">
+                        <img src="pfp/3.jpeg">
+                    </div>
+                    <div class="content">
+                        <b class="author green">Wewe</b>
+                        <div class="text green">
+                            <p>What</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="message">
+                    <div class="profile">
+                        <img src="pfp/2.jpeg">
+                    </div>
+                    <div class="content">
+                        <b class="author red">The Wawa</b>
+                        <div class="text red">
+                            <div class="reply">
+                                <p class="origin white"><b class="author white">Wywy Is the BEST!!!</b>: <i>Resentment
+                                        that turned into a deep depression</i></p>
+                                <div class="replying">
+                                    <img src="reply.svg">
+                                    <p>Found myself screaming in the hotel room</p>
+                                </div>
+                            </div>
+                            <p>I didn't wanna self-destruct</p>
+                            <p>The evils of Lucy was all around me</p>
+                            <p>So I went running for answers</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="message">
+                    <div class="profile white">
+                        <img src="pfp/6.jpeg">
+                    </div>
+                    <div class="content">
+                        <b class="author white">Wywy Is the BEST!!!</b>
+                        <div class="text white">
+                            <div class="reply">
+                                <p class="origin red"><b class="author red">The Wawa</b>: <i>I remember you was
+                                        conflicted</i></p>
+                                <div class="replying">
+                                    <img src="reply.svg">
+                                    <p>Misusing your influence</p>
+                                </div>
+                            </div>
+                            <p>Sometimes I did the same</p>
+                            <p>Abusing my power full of resentment</p>
+                            <p>Resentment that turned into a deep depression</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="message">
+                    <div class="profile">
+                        <img src="pfp/2.jpeg">
+                    </div>
+                    <div class="content">
+                        <b class="author red">The Wawa</b>
+                        <div class="text red">
+                            <p>I remember you was conflicted</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="composer">
+
+            </div>
+        </div>
+    </main>
+</body>
