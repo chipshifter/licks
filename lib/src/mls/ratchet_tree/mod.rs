@@ -32,7 +32,7 @@ use crate::mls::utilities::tree_math::{is_power_of_two, LeafIndex, NodeIndex, Nu
 
 /// [RFC9420 Sec.7.6](https://www.rfc-editor.org/rfc/rfc9420.html#section-7.6) `HPKECiphertext`
 ///
-/// it is used to keep encrypted path secret in Update Path.
+/// it is used to keep encrypted path secret in [`UpdatePath`].
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct HPKECiphertext {
     pub kem_output: Bytes,

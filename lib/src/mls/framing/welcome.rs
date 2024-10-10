@@ -99,6 +99,32 @@ impl Welcome {
         }
     }
 
+    pub(crate) fn extract_key_and_nonce(
+        welcome_secret: Bytes,
+        crypto_provider: &impl CryptoProvider,
+        cipher_suite: CipherSuite,
+    ) -> Result<(Bytes, Bytes)> {
+        let aead_nonce_size = crypto_provider.hpke(cipher_suite)?.aead_nonce_size();
+        let welcome_nonce = crypto_provider.expand_with_label(
+            cipher_suite,
+            &welcome_secret,
+            b"nonce",
+            &[],
+            aead_nonce_size,
+        )?;
+
+        let aead_key_size = crypto_provider.hpke(cipher_suite)?.aead_key_size();
+        let welcome_key = crypto_provider.expand_with_label(
+            cipher_suite,
+            &welcome_secret,
+            b"key",
+            &[],
+            aead_key_size,
+        )?;
+
+        Ok((welcome_key, welcome_nonce))
+    }
+
     pub(crate) fn decrypt_group_info(
         &self,
         crypto_provider: &impl CryptoProvider,
@@ -112,23 +138,8 @@ impl Welcome {
             psk_secret,
         )?;
 
-        let aead_nonce_size = crypto_provider.hpke(self.cipher_suite)?.aead_nonce_size();
-        let welcome_nonce = crypto_provider.expand_with_label(
-            self.cipher_suite,
-            &welcome_secret,
-            b"nonce",
-            &[],
-            aead_nonce_size,
-        )?;
-
-        let aead_key_size = crypto_provider.hpke(self.cipher_suite)?.aead_key_size();
-        let welcome_key = crypto_provider.expand_with_label(
-            self.cipher_suite,
-            &welcome_secret,
-            b"key",
-            &[],
-            aead_key_size,
-        )?;
+        let (welcome_key, welcome_nonce) =
+            Self::extract_key_and_nonce(welcome_secret, crypto_provider, self.cipher_suite)?;
 
         let raw_group_info = crypto_provider.hpke(self.cipher_suite)?.aead_open(
             &welcome_key,
