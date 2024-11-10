@@ -1,3 +1,9 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
 :root {
     font-family: Helvetica, Arial, sans-serif;
     font-size: 16px;
@@ -5,12 +11,14 @@
     font-weight: 400;
 
     font-synthesis: none;
+    -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
 
     --primary: #e4ed3e;
     --secondary: #bc79f3;
     --third: #38e541;
 
+    --element-deep: #e4dad1;
     --element-foreground: #f4ede8;
     --element-background: #f2e9e1;
     --foreground: #fffaf3;
@@ -70,7 +78,7 @@ div.tabs {
 
 div.panel {
     background-color: var(--background);
-    border-left: 4px dashed var(--element-foreground);
+    border-left: 3px solid var(--element-foreground);
     height: 100%;
     width: 100%;
 }
@@ -82,10 +90,10 @@ div.tabs > div.tab-buttons {
 
 div.tab-buttons > div {
     flex-grow: 1;
-    height: 80px;
+    height: 60px;
     margin: 0;
     padding: 0;
-    border-radius: 0 0 40px 40px;
+    border-radius: 0 0 30px 30px;
 
     display: flex;
     flex-direction: column;
@@ -96,9 +104,8 @@ div.tab-buttons > div {
 
 .group-tab-button {
     display: flex;
-    box-sizing: border-box;
     width: 100%;
-    max-height: 200px;
+    max-height: 140px;
     overflow: none;
     align-items: center;
     gap: 8px;

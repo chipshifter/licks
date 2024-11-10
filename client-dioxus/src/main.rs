@@ -175,6 +175,7 @@ fn App() -> Element {
             style: r"
                 display: flex;
                 flex-direction: column;
+                max-width: 300px;
             ",
             div {
                 id: "tab-name",
@@ -200,8 +201,8 @@ fn App() -> Element {
                     background_color: "var(--primary)",
                     onclick: move |_| tab.set(Tab::Groups),
                     Icon {
-                        width: 44,
-                        height: 44,
+                        width: 30,
+                        height: 30,
                         fill: "black",
                         icon: FiGlobe,
                     }
@@ -210,8 +211,8 @@ fn App() -> Element {
                     background_color: "var(--secondary)",
                     onclick: move |_| tab.set(Tab::Contacts),
                     Icon {
-                        width: 44,
-                        height: 44,
+                        width: 30,
+                        height: 30,
                         fill: "black",
                         icon: FiUser,
                     }
@@ -220,8 +221,8 @@ fn App() -> Element {
                     background_color: "var(--third)",
                     onclick: move |_| tab.set(Tab::Settings),
                     Icon {
-                        width: 44,
-                        height: 44,
+                        width: 30,
+                        height: 30,
                         fill: "black",
                         icon: FiSettings,
                     }

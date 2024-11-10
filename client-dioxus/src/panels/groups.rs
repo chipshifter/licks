@@ -66,6 +66,7 @@ pub fn GroupsTab(
 
         rsx! {
             div {
+                padding: "8px",
                 class: if is_selected_group {
                     "group-tab-button selected"
                 } else {
@@ -76,9 +77,9 @@ pub fn GroupsTab(
                     *selected_group.write() = group.clone();
                 },
                 div {
-                    min_width: "80px",
-                    min_height: "80px",
-                    border_radius: "6px",
+                    min_width: "60px",
+                    min_height: "60px",
+                    border_radius: "8px",
                     margin_right: "6px",
                     background_color: "{group_color}"
                 }
@@ -91,11 +92,18 @@ pub fn GroupsTab(
                     width: "100%",
                     height: "100%",
                     overflow: "hidden",
-                    h2 { "{group.group_name}" }
+                    h3 {
+                        overflow: "hidden",
+                        white_space: "nowrap",
+                        text_overflow: "ellipsis",
+                        "{group.group_name}"
+                    }
                     if let Some(msg) = last_message {
                         p {
                             width: "100%",
                             height: "100%",
+                            overflow: "hidden",
+                            white_space: "nowrap",
                             text_overflow: "ellipsis",
                             "{msg}"
                         }
@@ -130,8 +138,8 @@ pub fn GroupsTab(
                     },
                     JoinGroupModal { selected_group, group_list, is_open: is_join_group_modal_open },
                     Icon {
-                        width: 60,
-                        height: 40,
+                        width: 24,
+                        height: 24,
                         fill: "black",
                         icon: FiUserPlus,
                     }
@@ -151,8 +159,8 @@ pub fn GroupsTab(
                     },
                     CreateGroupModal { selected_group, group_list, is_open: is_create_group_modal_open },
                     Icon {
-                        width: 60,
-                        height: 40,
+                        width: 24,
+                        height: 24,
                         fill: "black",
                         icon: FiPlusSquare,
                     }

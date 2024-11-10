@@ -110,10 +110,32 @@ pub fn ChatPanel(selected_group: Signal<GroupUi>) -> Element {
         });
     };
 
+    let group_name = selected_group.read().group_name.clone();
+
     rsx! {
         div {
             class: "chat-panel",
+            display: "flex",
+            flex_direction: "column",
+            width: "100%",
+            height: "100%",
+            overflow: "hidden",
             div {
+                display: "flex",
+                align_items: "center",
+                height: "50px",
+                background_color: "var(--element-deep)",
+                h3 {
+                    margin_left: "10px",
+                    "{group_name}"
+                }
+            }
+            div {
+                flex_grow: "2",
+                width: "100%",
+                height: "100%",
+                overflow_y: "scroll",
+                overflow_x: "hidden",
                 class: "messages",
                 for message in messages() {
                     {message}
