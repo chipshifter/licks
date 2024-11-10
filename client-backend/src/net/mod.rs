@@ -1,5 +1,3 @@
-//! A generic trait/implementation of a bi-directional long lived connection.
-//! This is mainly `WebSockets`, but may implement other things such as RPC or `WebTransport` etc.
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -25,9 +23,15 @@ pub enum ServerConnectionError {
     InvalidServerUrl,
 }
 
+/// A global HashMap that keeps track of all pending requests. It is handled
+/// by [`super::manager::connections::ConnectionManager`], but also used inside
+/// individual [`Connection`] instances when they receive something to find which
+/// oneshot channel to send back the request response to.
 pub type PendingRequestSenders =
     Arc<scc::HashMap<ClientRequestId, tokio::sync::oneshot::Sender<Message>>>;
 
+/// This trait starts a generic [`Connection`] socket. This is the layer where
+/// diff connection technologies like WebSocket or WebTransport can be implemented.
 #[async_trait]
 pub trait ConnectionStarter {
     async fn start_connection(
