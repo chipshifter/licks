@@ -10,7 +10,7 @@ mls-rs-core = { version = "0.19.1", default-features = false, features = ["serde
 serde = { version = "1.0", features = ["derive"] }
 bytes = "1"
 prost = "0.12"
-uuid = { version = "1.10.0", features = ["v4", "v7", "serde"] }
+uuid = { version = "1.11.0", features = ["v4", "v7", "serde"] }
 thiserror = "1"
 
 # Crypto
@@ -19,9 +19,9 @@ hpke = { version = "0.12.0", default-features = false, features = ["alloc", "x25
 snow = { version = "0.9.6", default-features = false, features = ["default-resolver", "aes-gcm", "sha2"]}
 
 hmac = { version = "0.12.1" }
-signature = { version = "2.1.0" }
+signature = { version = "2.2.0" }
 aead = { version = "0.5.2", features = ["rand_core"] }
-aes-gcm = { version = "0.10.2" }
+aes-gcm = { version = "0.10.3" }
 sha2 = "0.10"
 ed25519-dalek = { version = "2.1.1", features = ["rand_core", "serde"] }
 hkdf = "0.12.4"
