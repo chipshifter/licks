@@ -1,11 +1,18 @@
-//! This is the place where connections are handled.
+//! This where connections and requests are handled.
 //!
-//! [`handle_unauthenticated_connection`] starts up an unauthenticated connection
-//! [`handle_authenticated_connection`] starts up, you guessed it, an authenticated
-//! connection.
+//! [`handle_connection_socket`] is the generic loop where the socket waits for incoming requests
+//! and processes them when it receives them. It includes a timeout/heartbeat mechanism so
+//! if the user stops responsing at all then their connection with close.
 //!
 //! It takes in a stream+sink of [`MessageWire`] though we'll probably split those in
 //! the future.
+//!
+//! [`handle_unauthenticated_connection`] redirects straight to [`handle_unauthenticated_connection`]
+//! with a request handler meant to handle unauthenticated requests only.
+//!
+//! [`handle_authenticated_connection`] first prompts the user to respond to a challenge
+//! (to authenticate them), then also redirects to [`handle_connection_socket`] but with
+//! an authenticated request handler.
 
 use std::sync::Arc;
 
