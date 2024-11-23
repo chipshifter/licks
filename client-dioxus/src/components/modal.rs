@@ -1,5 +1,6 @@
 use dioxus::prelude::*;
-use dioxus_free_icons::{icons::fi_icons::FiX, Icon};
+
+use crate::components::icon::ImageIcon;
 
 #[component]
 pub fn Modal(title: &'static str, child_element: Option<VNode>, is_open: Signal<bool>) -> Element {
@@ -48,11 +49,9 @@ pub fn Modal(title: &'static str, child_element: Option<VNode>, is_open: Signal<
                                 e.stop_propagation();
                                 *is_open.write() = false;
                             },
-                            Icon {
-                                width: 40,
-                                height: 40,
-                                fill: "black",
-                                icon: FiX,
+                            ImageIcon {
+                                size: 30,
+                                icon_name: "cross.png"
                             }
                         }
                         h1 {
