@@ -5,13 +5,11 @@ use client_backend::{
     ui::{GroupUi, MessageUi},
 };
 use dioxus::prelude::*;
-use dioxus_free_icons::{icons::fi_icons::FiSend, Icon};
 use dioxus_logger::tracing::*;
 use dioxus_sdk::clipboard::use_clipboard;
 
 use crate::{
-    get_default_profile,
-    panels::groups::{LAST_MESSAGE, MESSAGES},
+    components::icon::ImageIcon, get_default_profile, panels::groups::{LAST_MESSAGE, MESSAGES}
 };
 
 #[component]
@@ -124,7 +122,6 @@ pub fn ChatPanel(selected_group: Signal<GroupUi>) -> Element {
                 display: "flex",
                 align_items: "center",
                 height: "50px",
-                background_color: "var(--element-deep)",
                 h3 {
                     margin_left: "10px",
                     "{group_name}"
@@ -167,11 +164,9 @@ pub fn ChatPanel(selected_group: Signal<GroupUi>) -> Element {
                 }
                 div {
                     onclick: move |_| on_press_send(),
-                    Icon {
-                        width: 30,
-                        height: 30,
-                        fill: "black",
-                        icon: FiSend,
+                    ImageIcon {
+                        size: 30,
+                        icon_name: "send_arrow.png"
                     }
                 }
 

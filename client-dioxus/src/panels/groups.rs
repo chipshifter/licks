@@ -6,14 +6,10 @@ use client_backend::{
     ui::{GroupUi, MessageUi},
 };
 use dioxus::prelude::*;
-use dioxus_free_icons::{
-    icons::fi_icons::{FiPlusSquare, FiUserPlus},
-    Icon,
-};
 use dioxus_logger::tracing::{error, info};
 use futures_util::stream::StreamExt;
 
-use crate::{components::modal::Modal, get_default_profile, panels::chat::ChatPanel};
+use crate::{components::{icon::ImageIcon, modal::Modal}, get_default_profile, panels::chat::ChatPanel};
 
 pub static MESSAGES: GlobalSignal<HashMap<GroupUi, Vec<MessageUi>>> =
     GlobalSignal::new(HashMap::default);
@@ -119,53 +115,40 @@ pub fn GroupsTab(
     rsx! {
         div {
             id: "group-tab",
-            style: r"
-                overflow-x: none;
-                overflow-y: scroll;
-            ",
+            display: "flex",
+            flex_direction: "column",
+            overflow_x: "none",
+            overflow_y: "scroll",
             section {
+                display: "flex",
                 padding: "0.5rem",
                 border_bottom: "2px solid var(--primary)",
                 div {
-                    style: r"
-                        display: flex;
-                        align-items: center;
-                        padding: 8px;
-                        gap: 8px;
-                    ",
+                    display: "flex",
+                    align_items: "center",
+                    padding: "8px",
+                    gap: "8px",
                     onclick: move |_| {
                         *is_join_group_modal_open.write() = true;
                     },
                     JoinGroupModal { selected_group, group_list, is_open: is_join_group_modal_open },
-                    Icon {
-                        width: 24,
-                        height: 24,
-                        fill: "black",
-                        icon: FiUserPlus,
-                    }
-                    h3 {
-                        "Join group"
+                    ImageIcon {
+                        size: 24,
+                        icon_name: "contact_plus.png"
                     }
                 }
                 div {
-                    style: r"
-                        display: flex;
-                        align-items: center;
-                        padding: 8px;
-                        gap: 8px;
-                    ",
+                    display: "flex",
+                    align_items: "center",
+                    padding: "8px",
+                    gap: "8px",
                     onclick: move |_| {
                         *is_create_group_modal_open.write() = true;
                     },
                     CreateGroupModal { selected_group, group_list, is_open: is_create_group_modal_open },
-                    Icon {
-                        width: 24,
-                        height: 24,
-                        fill: "black",
-                        icon: FiPlusSquare,
-                    }
-                    h3 {
-                        "Create group"
+                    ImageIcon {
+                        size: 24,
+                        icon_name: "link_add.png"
                     }
                 }
             }
@@ -214,10 +197,8 @@ pub fn CreateGroupModal(
 
     let child_element = rsx! {
         div {
-            style: r"
-                width: 100%;
-                height: 100%;
-            ",
+            width: "100%",
+            height: "100%",
             h3 { "Create group"}
             p {
                 "Choose a name and description for your group in the boxes below"
@@ -312,10 +293,8 @@ pub fn JoinGroupModal(
 
     let child_element = rsx! {
         div {
-            style: r"
-                width: 100%;
-                height: 100%;
-            ",
+            width: "100%",
+            height: "100%",
             h3 { "Invite code "}
             p {
                 "Paste your invite in the text box below, then just press the Join button!"

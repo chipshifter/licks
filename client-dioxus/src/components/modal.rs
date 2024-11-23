@@ -7,24 +7,18 @@ pub fn Modal(title: &'static str, child_element: Option<VNode>, is_open: Signal<
         rsx! {
             div {
                 id: "modal-bg",
-                style: r"
-                    position: absolute;
-                    top: 0;
-                    bottom: 0;
-                    left: 0;
-                    right: 0;
-
-                    height: 100%;
-                    width: 100%;
-
-                    z-index: 99;
-
-                    background: #00000044;
-
-                    display: flex;
-                    justify-content: center;
-                    align-items: center; 
-                ",
+                position: "absolute",
+                top: "0",
+                bottom: "0",
+                left: "0",
+                right: "0",
+                height: "100%",
+                width: "100%",
+                z_index: "99",
+                background: "#00000044",
+                display: "flex",
+                justify_content: "center",
+                align_items: "center",
                 onkeydown: move |e| {
                     if e.key() == Key::Escape {
                         e.stop_propagation();
@@ -33,34 +27,23 @@ pub fn Modal(title: &'static str, child_element: Option<VNode>, is_open: Signal<
                 },
                 div {
                     id: "modal",
-                    style: r"
-                        border-radius: 24px;
-
-                        height: 70%;
-                        width: 60%;
-                        max-width: 600px;
-                        max-height: 400px;
-                        overflow-x: hidden;
-                        overflow-y: scroll;
-
-                        background-color: var(--element-foreground);
-
-                        display: flex;
-                        flex-direction: column;
-                        align-items: center;
-                        justify-content: space-between;
-
-                        padding: 1rem;
-                    ",
-
+                    border_radius: "24px",
+                    height: "70%",
+                    width: "60%",
+                    max_width: "600px",
+                    max_height: "400px",
+                    overflow_x: "hidden",
+                    overflow_y: "scroll",
+                    background_color: "var(--element-foreground)",
+                    display: "flex",
+                    flex_direction: "column",
+                    align_items: "center",
+                    justify_content: "space-between",
+                    padding: "1rem",
                     div {
-                        style: r"
-                            width: 100%;
-                        ",
+                        width: "100%",
                         div {
-                            style: r"
-                                float: right;
-                            ",
+                            float: "right",
                             onclick: move |e| {
                                 e.stop_propagation();
                                 *is_open.write() = false;
@@ -73,13 +56,11 @@ pub fn Modal(title: &'static str, child_element: Option<VNode>, is_open: Signal<
                             }
                         }
                         h1 {
-                            style: r"
-                                width: 100%;
-                                text-align: center;
-                                font-weight: black;
-                                margin: 1rem;
-                                margin-bottom: 2rem;
-                            ",
+                            width: "100%",
+                            text_align: "center",
+                            font_weight: "black",
+                            margin: "1rem",
+                            margin_bottom: "2rem",
                             {title}
                         }
                     }

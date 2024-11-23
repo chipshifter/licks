@@ -7,11 +7,8 @@ use client_backend::{
     client::{Client, ClientProfile},
     ui::GroupUi,
 };
+use components::icon::ImageIcon;
 use dioxus::prelude::*;
-use dioxus_free_icons::{
-    icons::fi_icons::{FiGlobe, FiSettings, FiUser},
-    Icon,
-};
 use dioxus_logger::tracing::{error, info, Level};
 use panels::groups::{message_service, GroupsPanel, GroupsPanelProps, GroupsTab, GroupsTabProps};
 
@@ -172,26 +169,20 @@ fn App() -> Element {
     rsx! {
         div {
             class: "tabs",
-            style: r"
-                display: flex;
-                flex-direction: column;
-                max-width: 300px;
-            ",
+            display: "flex",
+            flex_direction: "column",
+            max_width: "300px",
             div {
                 id: "tab-name",
-                style: r"
-                    display: flex;
-                    align-items: center;
-                    padding: 12px;
-                    height: 30px;
-                    width: 100%;
-                ",
+                display: "flex",
+                align_items: "center",
+                padding: "12px",
+                height: "30px",
+                width: "100%",
                 background_color: tab_color,
                 b {
-                    style: r"
-                        font-size: x-large;
-                        color: var(--text-dark);
-                    ",
+                    font_size: "x-large",
+                    color: "var(--text-dark)",
                     {tab_name}
                 }
             }
@@ -200,31 +191,25 @@ fn App() -> Element {
                 div {
                     background_color: "var(--primary)",
                     onclick: move |_| tab.set(Tab::Groups),
-                    Icon {
-                        width: 30,
-                        height: 30,
-                        fill: "black",
-                        icon: FiGlobe,
+                    ImageIcon {
+                        size: 40,
+                        icon_name: "globe.png"
                     }
                 }
                 div {
                     background_color: "var(--secondary)",
                     onclick: move |_| tab.set(Tab::Contacts),
-                    Icon {
-                        width: 30,
-                        height: 30,
-                        fill: "black",
-                        icon: FiUser,
+                    ImageIcon {
+                        size: 40,
+                        icon_name: "contact.png"
                     }
                 }
                 div {
                     background_color: "var(--third)",
                     onclick: move |_| tab.set(Tab::Settings),
-                    Icon {
-                        width: 30,
-                        height: 30,
-                        fill: "black",
-                        icon: FiSettings,
+                    ImageIcon {
+                        size: 40,
+                        icon_name: "wrench.png"
                     }
                 }
             }
