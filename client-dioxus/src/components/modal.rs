@@ -28,7 +28,7 @@ pub fn Modal(title: &'static str, child_element: Option<VNode>, is_open: Signal<
                 },
                 div {
                     id: "modal",
-                    border_radius: "24px",
+                    border_radius: "2px",
                     height: "70%",
                     width: "60%",
                     max_width: "600px",
@@ -50,8 +50,9 @@ pub fn Modal(title: &'static str, child_element: Option<VNode>, is_open: Signal<
                                 *is_open.write() = false;
                             },
                             ImageIcon {
-                                size: 30,
-                                icon_name: "cross.png"
+                                size: 24,
+                                icon_name: "cross.png",
+                                button: true
                             }
                         }
                         h1 {

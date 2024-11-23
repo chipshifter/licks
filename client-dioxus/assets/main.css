@@ -14,13 +14,14 @@
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
 
-    --primary: #e4ed3e;
-    --secondary: #bc79f3;
+    --primary: #f9ff46;
+    --secondary: #c987ff;
     --third: #38e541;
 
+    --element-select: #0247d1;
     --element-deep: #e4dad1;
     --element-foreground: #f4ede8;
-    --element-background: #f2e9e1;
+    --element-background: #f9f2ed;
     --foreground: #fffaf3;
     --background: #faf4ed;
     --contrast: rgb(255, 255, 255);
@@ -55,6 +56,11 @@ body>div#main {
 
     display: flex;
     background-color: var(--background);
+}
+
+.icon-button:hover {
+    border: 3px solid var(--element-select);
+    border-radius: 4px;
 }
 
 div.loading {

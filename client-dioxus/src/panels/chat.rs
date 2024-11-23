@@ -156,21 +156,18 @@ pub fn ChatPanel(selected_group: Signal<GroupUi>) -> Element {
                 }
             }
             form {
-                border_top: "4px solid var(--element-foreground)",
                 display: "flex",
                 justify_content: "center",
                 align_items: "center",
                 max_width: "100%",
                 height: "40px",
-                padding: "8px",
-                gap: "4px",
+                padding_left: "8px",
+                padding_right: "2px",
+                gap: "6px",
                 onsubmit: move |_| on_press_send(),
                 input {
-                    height: "100%",
                     flex_grow: "1",
-                    margin: "0",
-                    padding: "0",
-                    border_radius: "10px",
+                    placeholder: "Write a message",
                     value: "{input_message}",
                     oninput: move |event| input_message.set(event.value()),
                 }
@@ -178,6 +175,7 @@ pub fn ChatPanel(selected_group: Signal<GroupUi>) -> Element {
                     r#type: "submit",
                     display: "none"
                 }
+                // Send button
                 div {
                     display: "flex",
                     justify_content: "center",
