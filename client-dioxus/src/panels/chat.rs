@@ -9,7 +9,9 @@ use dioxus_logger::tracing::*;
 use dioxus_sdk::clipboard::use_clipboard;
 
 use crate::{
-    components::icon::ImageIcon, get_default_profile, panels::groups::{LAST_MESSAGE, MESSAGES}
+    components::icon::ImageIcon,
+    get_default_profile,
+    panels::groups::{LAST_MESSAGE, MESSAGES},
 };
 
 #[component]
@@ -115,6 +117,8 @@ pub fn ChatPanel(selected_group: Signal<GroupUi>) -> Element {
             class: "chat-panel",
             display: "flex",
             flex_direction: "column",
+            justify_content: "end",
+            align_items: "stretch",
             width: "100%",
             height: "100%",
             overflow: "hidden",
@@ -133,7 +137,8 @@ pub fn ChatPanel(selected_group: Signal<GroupUi>) -> Element {
                 height: "100%",
                 overflow_y: "scroll",
                 overflow_x: "hidden",
-                class: "messages",
+                display: "flex",
+                flex_direction: "column",
                 for message in messages() {
                     {message}
                 }
@@ -151,10 +156,21 @@ pub fn ChatPanel(selected_group: Signal<GroupUi>) -> Element {
                 }
             }
             form {
-                class: "chat-input",
+                border_top: "4px solid var(--element-foreground)",
+                display: "flex",
+                justify_content: "center",
+                align_items: "center",
+                max_width: "100%",
+                height: "40px",
+                padding: "8px",
+                gap: "4px",
                 onsubmit: move |_| on_press_send(),
                 input {
-                    class: "composer",
+                    height: "100%",
+                    flex_grow: "1",
+                    margin: "0",
+                    padding: "0",
+                    border_radius: "10px",
                     value: "{input_message}",
                     oninput: move |event| input_message.set(event.value()),
                 }
@@ -163,6 +179,11 @@ pub fn ChatPanel(selected_group: Signal<GroupUi>) -> Element {
                     display: "none"
                 }
                 div {
+                    display: "flex",
+                    justify_content: "center",
+                    align_items: "center",
+                    height: "100%",
+                    width: "auto",
                     onclick: move |_| on_press_send(),
                     ImageIcon {
                         size: 30,

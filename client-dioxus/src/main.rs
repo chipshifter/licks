@@ -169,7 +169,10 @@ fn App() -> Element {
     rsx! {
         div {
             class: "tabs",
-            display: "flex",
+            width: "100%",
+            max_width: "300px",
+            height: "100%",
+            background_color: "var(--foreground)",
             flex_direction: "column",
             max_width: "300px",
             div {
@@ -187,6 +190,8 @@ fn App() -> Element {
                 }
             }
             div {
+                display: "flex",
+                align_items: "stretch",
                 class: "tab-buttons",
                 div {
                     background_color: "var(--primary)",
@@ -216,7 +221,9 @@ fn App() -> Element {
             {tab_rsx}
         }
         div {
-            class: "panel",
+            background_color: "var(--background)",
+            height: "100%",
+            width: "100%",
             {panel_rsx}
         }
     }

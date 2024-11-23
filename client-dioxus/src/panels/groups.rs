@@ -133,7 +133,7 @@ pub fn GroupsTab(
                     },
                     JoinGroupModal { selected_group, group_list, is_open: is_join_group_modal_open },
                     ImageIcon {
-                        size: 24,
+                        size: 30,
                         icon_name: "contact_plus.png"
                     }
                 }
@@ -147,7 +147,7 @@ pub fn GroupsTab(
                     },
                     CreateGroupModal { selected_group, group_list, is_open: is_create_group_modal_open },
                     ImageIcon {
-                        size: 24,
+                        size: 30,
                         icon_name: "link_add.png"
                     }
                 }
