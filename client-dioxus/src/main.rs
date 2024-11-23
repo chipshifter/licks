@@ -10,7 +10,7 @@ use client_backend::{
 use components::icon::ImageIcon;
 use dioxus::prelude::*;
 use dioxus_logger::tracing::{error, info, Level};
-use panels::groups::{message_service, GroupsPanel, GroupsPanelProps, GroupsTab, GroupsTabProps};
+use panels::{groups::{message_service, GroupsPanel, GroupsPanelProps, GroupsTab, GroupsTabProps}, settings::{SettingsPanel, SettingsTab}};
 
 pub mod components;
 pub mod panels;
@@ -159,8 +159,8 @@ fn App() -> Element {
             "var(--secondary)",
         ),
         Tab::Settings => (
-            rsx!("Settings tab"),
-            rsx!("Settings panel"),
+            SettingsTab(),
+            SettingsPanel(),
             "Settings",
             "var(--third)",
         ),
@@ -180,7 +180,7 @@ fn App() -> Element {
                 display: "flex",
                 align_items: "center",
                 padding: "12px",
-                height: "30px",
+                height: "40px",
                 width: "100%",
                 background_color: tab_color,
                 b {

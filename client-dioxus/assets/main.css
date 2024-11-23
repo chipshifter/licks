@@ -81,7 +81,7 @@ div.tab-buttons > div {
     height: 60px;
     margin: 0;
     padding: 0;
-    border-radius: 0 0 30px 30px;
+    border-radius: 0 0 8px 8px;
 
     display: flex;
     flex-direction: column;

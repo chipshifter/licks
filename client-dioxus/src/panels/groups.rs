@@ -121,8 +121,6 @@ pub fn GroupsTab(
             overflow_y: "scroll",
             section {
                 display: "flex",
-                padding: "0.5rem",
-                border_bottom: "2px solid var(--primary)",
                 div {
                     display: "flex",
                     align_items: "center",
