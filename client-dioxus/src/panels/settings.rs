@@ -3,9 +3,7 @@ use dioxus::prelude::*;
 use crate::components::icon::ImageIcon;
 #[component]
 pub fn SettingsTab() -> Element {
-    rsx! {
-
-    }
+    rsx! {}
 }
 
 #[component]

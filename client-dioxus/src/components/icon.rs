@@ -10,11 +10,7 @@ pub struct ImageIconProps {
 
 #[component]
 pub fn ImageIcon(props: ImageIconProps) -> Element {
-    let class = if props.button {
-        "icon-button"
-    } else {
-        ""
-    };
+    let class = if props.button { "icon-button" } else { "" };
 
     rsx! {
         img {

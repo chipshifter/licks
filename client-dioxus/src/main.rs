@@ -10,7 +10,11 @@ use client_backend::{
 use components::icon::ImageIcon;
 use dioxus::prelude::*;
 use dioxus_logger::tracing::{error, info, Level};
-use panels::{groups::{message_service, GroupsPanel, GroupsPanelProps, GroupsTab, GroupsTabProps}, settings::{SettingsPanel, SettingsTab}};
+use panels::{
+    chat::{ChatPanel, ChatPanelProps},
+    groups::{message_service, GroupsTab, GroupsTabProps},
+    settings::{SettingsPanel, SettingsTab},
+};
 
 pub mod components;
 pub mod panels;
@@ -148,7 +152,7 @@ fn App() -> Element {
                 group_list,
                 selected_group,
             }),
-            GroupsPanel(GroupsPanelProps { selected_group }),
+            ChatPanel(ChatPanelProps { selected_group }),
             "Groups",
             "var(--primary)",
         ),
@@ -158,73 +162,77 @@ fn App() -> Element {
             "Contacts",
             "var(--secondary)",
         ),
-        Tab::Settings => (
-            SettingsTab(),
-            SettingsPanel(),
-            "Settings",
-            "var(--third)",
-        ),
+        Tab::Settings => (SettingsTab(), SettingsPanel(), "Settings", "var(--third)"),
     };
 
     rsx! {
         div {
-            class: "tabs",
-            width: "100%",
-            max_width: "300px",
-            height: "100%",
-            background_color: "var(--foreground)",
-            flex_direction: "column",
-            max_width: "300px",
+            width: "inherit",
+            height: "inherit",
+            overflow: "hidden",
+            display: "flex",
             div {
-                id: "tab-name",
-                display: "flex",
-                align_items: "center",
-                padding: "12px",
-                height: "40px",
+                class: "tabs",
                 width: "100%",
-                background_color: tab_color,
-                b {
-                    font_size: "x-large",
-                    color: "var(--text-dark)",
-                    {tab_name}
+                max_width: "300px",
+                height: "100%",
+                background_color: "var(--foreground)",
+                flex_direction: "column",
+                max_width: "300px",
+                div {
+                    display: "flex",
+                    align_items: "stretch",
+                    height: "60px",
+                    class: "tab-buttons",
+                    div {
+                        background_color: "var(--primary)",
+                        onclick: move |_| tab.set(Tab::Groups),
+                        ImageIcon {
+                            size: 40,
+                            icon_name: "globe.png"
+                        }
+                    }
+                    div {
+                        background_color: "var(--secondary)",
+                        onclick: move |_| tab.set(Tab::Contacts),
+                        ImageIcon {
+                            size: 40,
+                            icon_name: "contact.png"
+                        }
+                    }
+                    div {
+                        background_color: "var(--third)",
+                        onclick: move |_| tab.set(Tab::Settings),
+                        ImageIcon {
+                            size: 40,
+                            icon_name: "wrench.png"
+                        }
+                    }
                 }
+                div {
+                    id: "tab-name",
+                    display: "flex",
+                    align_items: "center",
+                    padding_left: "12px",
+                    height: "40px",
+                    width: "100%",
+                    border_radius: "0 0 12px 12px",
+                    background_color: tab_color,
+                    b {
+                        font_size: "x-large",
+                        color: "var(--text-dark)",
+                        {tab_name}
+                    }
+                }
+                {tab_rsx}
             }
             div {
-                display: "flex",
-                align_items: "stretch",
-                class: "tab-buttons",
-                div {
-                    background_color: "var(--primary)",
-                    onclick: move |_| tab.set(Tab::Groups),
-                    ImageIcon {
-                        size: 40,
-                        icon_name: "globe.png"
-                    }
-                }
-                div {
-                    background_color: "var(--secondary)",
-                    onclick: move |_| tab.set(Tab::Contacts),
-                    ImageIcon {
-                        size: 40,
-                        icon_name: "contact.png"
-                    }
-                }
-                div {
-                    background_color: "var(--third)",
-                    onclick: move |_| tab.set(Tab::Settings),
-                    ImageIcon {
-                        size: 40,
-                        icon_name: "wrench.png"
-                    }
-                }
+                background_color: "var(--background)",
+                width: "inherit",
+                height: "inherit",
+                overflow: "hidden",
+                {panel_rsx}
             }
-            {tab_rsx}
-        }
-        div {
-            background_color: "var(--background)",
-            height: "100%",
-            width: "100%",
-            {panel_rsx}
         }
     }
 }

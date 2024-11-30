@@ -9,7 +9,10 @@ use dioxus::prelude::*;
 use dioxus_logger::tracing::{error, info};
 use futures_util::stream::StreamExt;
 
-use crate::{components::{icon::ImageIcon, modal::Modal}, get_default_profile, panels::chat::ChatPanel};
+use crate::{
+    components::{icon::ImageIcon, modal::Modal},
+    get_default_profile,
+};
 
 pub static MESSAGES: GlobalSignal<HashMap<GroupUi, Vec<MessageUi>>> =
     GlobalSignal::new(HashMap::default);
@@ -35,13 +38,6 @@ pub async fn message_service(mut rx: UnboundedReceiver<Notification>) {
                 let _ = last_msg_writer_lock.insert(group, Some(message));
             }
         }
-    }
-}
-
-#[component]
-pub fn GroupsPanel(selected_group: Signal<GroupUi>) -> Element {
-    rsx! {
-        ChatPanel { selected_group }
     }
 }
 
