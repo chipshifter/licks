@@ -1,5 +1,5 @@
 use crate::error::Error;
-use lib::crypto::blinded_address::{BlindedAddressPublic, BlindedAddressSecret};
+use lib::crypto::blinded_address::{BlindedAddressProof, BlindedAddressPublic};
 
 #[derive(thiserror::Error, Debug, Copy, Clone, PartialEq, Eq)]
 pub enum AuthenticationError {
@@ -13,8 +13,8 @@ pub enum AuthenticationError {
 
 #[inline]
 pub(crate) fn verify_blinded_address(
-    ba: BlindedAddressSecret,
-) -> Result<BlindedAddressPublic, Error> {
+    ba: BlindedAddressProof,
+) -> Result<(BlindedAddressPublic, Vec<u8>), Error> {
     Ok(ba
         .verify()
         .map_err(lib::error::Error::BlindedAddressError)?)

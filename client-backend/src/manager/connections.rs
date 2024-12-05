@@ -23,7 +23,7 @@ use crate::net::{ConnectionStarter, PendingRequestSenders};
 use crate::tests::connections::FakeAuthenticatedConnection;
 #[cfg(test)]
 use crate::tests::connections::FakeConnection;
-use lib::crypto::blinded_address::BlindedAddressSecret;
+use lib::crypto::blinded_address::BlindedAddressPublic;
 
 pub struct ConnectionManager {
     pending_request_senders: PendingRequestSenders,
@@ -357,7 +357,7 @@ impl ConnectionManager {
     pub async fn listen_to_blinded_address(
         &self,
         server: &Server,
-        blinded_address_secret: BlindedAddressSecret,
+        blinded_address: BlindedAddressPublic,
         listener_tx: Sender<ListenerMessage>,
     ) -> Result<ListenerId> {
         let listener_id = ListenerId::generate();
@@ -366,7 +366,7 @@ impl ConnectionManager {
             self,
             server,
             Message::Unauth(UnauthRequest::ChatService(
-                ChatServiceMessage::SubscribeToAddress(listener_id, blinded_address_secret),
+                ChatServiceMessage::SubscribeToAddress(listener_id, blinded_address),
             )),
             Self::get_unauthenticated_connection,
             Self::remove_unauthenticated_connection,

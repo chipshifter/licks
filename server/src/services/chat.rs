@@ -8,7 +8,7 @@ use lib::{
         },
         group::{DeliveryStamp, SendMessageRequest},
     },
-    crypto::blinded_address::BlindedAddressPublic,
+    crypto::blinded_address::{BlindedAddressPublic, BLINDED_ADDRESS_PUBLIC_LENGTH},
 };
 use scc::ebr::Guard;
 use sled::Tree;
@@ -84,65 +84,51 @@ impl ConnectionService<ChatServiceMessage> for ChatService {
     ) -> Result<(), Error> {
         match msg {
             ChatServiceMessage::RetrieveQueue(req) => {
-                if let Ok(verified_blinded_address) =
-                    verify_blinded_address(req.blinded_address_secret)
-                {
-                    let mut iter = ChatService::open_message_queue(&verified_blinded_address)?
-                        .range(req.server_delivery_id.as_bytes().as_slice()..);
+                let mut iter = ChatService::open_message_queue(&req.blinded_address)?
+                    .range(req.server_delivery_id.as_bytes().as_slice()..);
 
-                    let mut counter = 0;
+                let mut counter = 0;
 
-                    while let Some(Ok((delivery_id_bytes, message_bytes))) = iter.next() {
-                        let delivery_id = DeliveryStamp::try_from(&*delivery_id_bytes)
-                            .map_err(|()| Error::UnknownError)?;
+                while let Some(Ok((delivery_id_bytes, message_bytes))) = iter.next() {
+                    let delivery_id = DeliveryStamp::try_from(&*delivery_id_bytes)
+                        .map_err(|()| Error::UnknownError)?;
 
-                        request
-                            .message(Message::Unauth(UnauthRequest::ChatService(MlsMessage(
-                                delivery_id,
-                                message_bytes.to_vec(),
-                            ))))
-                            .await?;
-                        counter += 1;
-                    }
+                    request
+                        .message(Message::Unauth(UnauthRequest::ChatService(MlsMessage(
+                            delivery_id,
+                            message_bytes.to_vec(),
+                        ))))
+                        .await?;
+                    counter += 1;
+                }
 
-                    if counter > 0 {
-                        request
-                            .message(Message::Unauth(UnauthRequest::ChatService(QueueDone(
-                                counter,
-                            ))))
-                            .await?;
-                    } else {
-                        request
-                            .message(Message::Unauth(UnauthRequest::ChatService(QueueEmpty)))
-                            .await?;
-                    }
+                if counter > 0 {
+                    request
+                        .message(Message::Unauth(UnauthRequest::ChatService(QueueDone(
+                            counter,
+                        ))))
+                        .await?;
                 } else {
-                    tracing::event!(
-                        Level::ERROR,
-                        "WS: Authentication failed for retrieving queue"
-                    );
-                    request.error(ServiceError::InvalidCredentials).await?;
+                    request
+                        .message(Message::Unauth(UnauthRequest::ChatService(QueueEmpty)))
+                        .await?;
                 }
 
                 Ok(())
             }
             ChatServiceMessage::SubscribeToAddress(listener_id, blinded_address) => {
-                if let Ok(verified_blinded_address) = verify_blinded_address(blinded_address) {
-                    if add_listener(verified_blinded_address, listener_id, request.clone())
-                        .await
-                        .is_ok()
-                    {
-                        tracing::event!(
-                            Level::INFO,
-                            "User began listening to {}...",
-                            verified_blinded_address
-                        );
-                        request.message(Message::Ok).await?;
-                    } else {
-                        request.error(ServiceError::InternalError).await?;
-                    }
+                if add_listener(blinded_address, listener_id, request.clone())
+                    .await
+                    .is_ok()
+                {
+                    tracing::event!(
+                        Level::INFO,
+                        "User began listening to {}...",
+                        blinded_address
+                    );
+                    request.message(Message::Ok).await?;
                 } else {
-                    request.error(ServiceError::InvalidCredentials).await?;
+                    request.error(ServiceError::InternalError).await?;
                 }
 
                 Ok(())
@@ -163,8 +149,9 @@ impl ConnectionService<ChatServiceMessage> for ChatService {
 
 impl ChatService {
     pub fn send_message(request: SendMessageRequest) -> ServiceResult {
-        let verified_blinded_address = verify_blinded_address(request.blinded_address_secret)
-            .map_err(|_| ServiceError::InvalidCredentials)?;
+        let (verified_blinded_address, verified_message) =
+            verify_blinded_address(request.blinded_address_proof)
+                .map_err(|_| ServiceError::InvalidCredentials)?;
 
         let queue_tree = Self::open_message_queue(&verified_blinded_address)
             .map_err(|_| ServiceError::InternalError)?;
@@ -173,10 +160,7 @@ impl ChatService {
         let delivery_stamp = DeliveryStamp::generate();
 
         queue_tree
-            .insert(
-                delivery_stamp.as_bytes(),
-                request.mls_message_out_bytes.clone(),
-            )
+            .insert(delivery_stamp.as_bytes(), verified_message.clone())
             .map_err(Error::from)?;
 
         // Broadcast message to all the listeners
@@ -184,7 +168,7 @@ impl ChatService {
             let guard = Guard::new();
 
             if let Some(broadcast) = BROADCASTERS.peek(&verified_blinded_address, &guard) {
-                if let Ok(many) = broadcast.send((delivery_stamp, request.mls_message_out_bytes)) {
+                if let Ok(many) = broadcast.send((delivery_stamp, verified_message)) {
                     tracing::debug!(
                         "Broadcasting message to {} listener(s) at {}",
                         many,
@@ -204,10 +188,10 @@ impl ChatService {
 
     #[inline]
     pub fn open_message_queue(blinded_address: &BlindedAddressPublic) -> Result<Tree, Error> {
-        // "queue/" (6 bytes) + Blinded public (which is a SHA256 hash so 32 bytes) = 28 bytes
-        let mut bytes: [u8; 38] = [0u8; 38];
+        // "queue/" (6 bytes) + Blinded public length
+        let mut bytes = [0u8; 6 + BLINDED_ADDRESS_PUBLIC_LENGTH];
         bytes[..6].copy_from_slice(b"queue/");
-        bytes[6..].copy_from_slice(blinded_address.as_bytes());
+        bytes[6..].copy_from_slice(&blinded_address.0);
         Ok(DB.open_tree(bytes)?)
     }
 
@@ -226,9 +210,7 @@ mod tests {
             connection::{ClientRequestId, MessageWire},
             group::GetMessagesRequest,
         },
-        crypto::blinded_address::test_utils::{
-            generate_blinded_address_fake, generate_blinded_address_random,
-        },
+        crypto::{blinded_address::BlindedAddressSecret, rng::random_bytes},
     };
     use tokio::sync::mpsc;
     use tracing::Span;
@@ -240,11 +222,27 @@ mod tests {
     #[tokio::test]
     #[allow(clippy::too_many_lines)]
     async fn test_chat_service() {
+        let valid_proof = |msg: Vec<u8>| {
+            let secret = random_bytes::<16>();
+            let mut ba_secret = BlindedAddressSecret::from_group_secret(&secret);
+            let ba_proof = ba_secret.create_proof(msg);
+
+            ba_proof
+        };
+
+        let valid_blinded_proof = valid_proof(b"I remember you was conflicted".to_vec());
+
+        let invalid_blinded_proof = {
+            let mut tmp = valid_blinded_proof.clone();
+            tmp.message = b"Misusing your influence".to_vec();
+
+            tmp
+        };
+
         // Send fake message fails
         assert_eq!(
             ChatService::send_message(SendMessageRequest {
-                blinded_address_secret: generate_blinded_address_fake(),
-                mls_message_out_bytes: vec![0],
+                blinded_address_proof: invalid_blinded_proof
             }),
             Err(ServiceError::InvalidCredentials),
             "Sending a message with an invalid blinded address should not work"
@@ -253,9 +251,8 @@ mod tests {
         // Send message A, B and C. Take note of a timestamp so we can retrieve B and C
         // while skipping A.
 
-        let valid_blinded_address = generate_blinded_address_random();
         let tree =
-            ChatService::open_message_queue(&valid_blinded_address.public).expect("tree opens");
+            ChatService::open_message_queue(&valid_blinded_proof.ba_public).expect("tree opens");
 
         assert!(tree.is_empty());
 
@@ -263,8 +260,7 @@ mod tests {
         let a = vec![1, 2, 3];
         assert_eq!(
             ChatService::send_message(SendMessageRequest {
-                blinded_address_secret: valid_blinded_address,
-                mls_message_out_bytes: a.clone(),
+                blinded_address_proof: valid_proof(a.clone())
             }),
             Ok(Message::Ok),
             "Sending a message with a valid blinded address should work"
@@ -274,10 +270,10 @@ mod tests {
 
         // Send message B
         let b = vec![1, 2, 3, 4];
+
         assert_eq!(
             ChatService::send_message(SendMessageRequest {
-                blinded_address_secret: valid_blinded_address,
-                mls_message_out_bytes: b.clone(),
+                blinded_address_proof: valid_proof(b.clone())
             }),
             Ok(Message::Ok),
             "Sending a message with a valid blinded address should work"
@@ -289,8 +285,7 @@ mod tests {
         let c = vec![1, 2, 3, 4, 5];
         assert_eq!(
             ChatService::send_message(SendMessageRequest {
-                blinded_address_secret: valid_blinded_address,
-                mls_message_out_bytes: c.clone(),
+                blinded_address_proof: valid_proof(c.clone())
             }),
             Ok(Message::Ok),
             "Sending a message with a valid blinded address should work"
@@ -315,7 +310,7 @@ mod tests {
         // Now, we want to retrieve all messages after B.
 
         let request = GetMessagesRequest {
-            blinded_address_secret: valid_blinded_address,
+            blinded_address: valid_blinded_proof.ba_public,
             server_delivery_id: stamp_a,
         };
 
@@ -379,7 +374,7 @@ mod tests {
         };
 
         let request = GetMessagesRequest {
-            blinded_address_secret: valid_blinded_address,
+            blinded_address: valid_blinded_proof.ba_public,
             server_delivery_id: stamp_b,
         };
 

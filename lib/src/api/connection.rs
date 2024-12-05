@@ -8,7 +8,7 @@ pub mod proto;
 
 use crate::{
     crypto::{
-        blinded_address::BlindedAddressSecret,
+        blinded_address::BlindedAddressPublic,
         challenge::{AuthChallenge, AuthChallengeResponse},
         usernames::UsernameHash,
     },
@@ -99,7 +99,7 @@ pub enum ChatServiceMessage {
     RetrieveQueue(GetMessagesRequest),
     /// Authentication payload for the user to start
     /// listening to a blinded address in real time.
-    SubscribeToAddress(ListenerId, BlindedAddressSecret),
+    SubscribeToAddress(ListenerId, BlindedAddressPublic),
     StopListening(ListenerId),
     MlsMessage(DeliveryStamp, Vec<u8>),
     /// Sent by the server after it is done sending the queues messages.

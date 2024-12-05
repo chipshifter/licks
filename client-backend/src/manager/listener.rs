@@ -10,7 +10,7 @@ use tokio::{
 
 use lib::{
     api::{connection::ListenerId, group::DeliveryStamp},
-    crypto::blinded_address::BlindedAddressSecret,
+    crypto::blinded_address::BlindedAddressPublic,
     identifiers::GroupIdentifier,
 };
 
@@ -70,14 +70,19 @@ impl ListenerManager {
                 .await;
         }
 
-        let (blinded_address, epoch) = key
+        let (blinded_address_secret, epoch) = key
             .0
             .group_manager
             .get_blinded_address_and_epoch(&group_id)?;
 
-        let listener = Listener::start(key.clone(), epoch, blinded_address, notification_sender)
-            .await
-            .map_err(|()| anyhow!("Starting listener didn't work (request to listen failed)"))?;
+        let listener = Listener::start(
+            key.clone(),
+            epoch,
+            blinded_address_secret.to_public(),
+            notification_sender,
+        )
+        .await
+        .map_err(|()| anyhow!("Starting listener didn't work (request to listen failed)"))?;
 
         let _ = self.listeners.insert_async(key, listener).await;
 
@@ -89,7 +94,7 @@ impl ListenerManager {
         profile_manager: Arc<ProfileManager>,
         group_id: GroupIdentifier,
         epoch: u64,
-        blinded_address: BlindedAddressSecret,
+        blinded_address: BlindedAddressPublic,
     ) -> anyhow::Result<()> {
         let key = &(profile_manager.clone(), group_id);
         if let Some(listener) = self.listeners.get_async(key).await {
@@ -220,7 +225,7 @@ impl Listener {
     pub async fn start(
         key: ListenerKey,
         start_epoch: u64,
-        blinded_address: BlindedAddressSecret,
+        blinded_address: BlindedAddressPublic,
         notification_sender: Arc<NotificationSender>,
     ) -> Result<(Arc<Self>, JoinHandle<()>), ()> {
         let (sender, mut rx) = mpsc::channel::<ListenerMessage>(16);
@@ -283,7 +288,7 @@ impl Listener {
     async fn listen_new_epoch(
         &self,
         epoch: u64,
-        blinded_address: BlindedAddressSecret,
+        blinded_address: BlindedAddressPublic,
     ) -> Result<ListenerId, ()> {
         let server = self.key.0.get_server();
         let request_id = CONNECTIONS_MANAGER
@@ -323,7 +328,7 @@ impl Listener {
     async fn on_message_receive(
         &self,
         new_message: &ListenerMessage,
-    ) -> anyhow::Result<Option<(u64, BlindedAddressSecret)>> {
+    ) -> anyhow::Result<Option<(u64, BlindedAddressPublic)>> {
         let (delivery_stamp, message_bytes) = new_message;
         let group_id = self.key.1;
         let profile_manager = &self.key.0;

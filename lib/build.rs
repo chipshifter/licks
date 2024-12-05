@@ -12,6 +12,7 @@ fn main() {
     // (List of protobuf files to include into file, assumed generated file name, file that imports it)
     let proto_sets = [(
         [
+            "blinded_address",
             "empty",
             "credentials",
             "registration",

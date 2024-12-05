@@ -46,7 +46,8 @@ pub fn ChatPanel(selected_group: Signal<GroupUi>) -> Element {
 
             let account_id = profile.profile.get_account_id();
             // TODO: Load our actual profile name somewhere idk
-            let message_ui = MessageUi::plain_text("You".to_string(), account_id, message.clone());
+            let message_ui =
+                MessageUi::plain_text(profile.username.0 .0.clone(), account_id, message.clone());
 
             let content = Content::plain_text(message);
 

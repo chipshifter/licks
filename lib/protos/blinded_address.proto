@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+message BlindedAddressPublic {
+    bytes value = 1;
+}
+
+message BlindedAddressProof {
+    BlindedAddressPublic ba_public = 1;
+    bytes message = 2;
+    bytes signature = 3;
+}

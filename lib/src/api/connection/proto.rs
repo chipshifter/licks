@@ -259,7 +259,7 @@ impl From<super::ChatServiceMessage> for ChatServiceMessage {
             super::ChatServiceMessage::RetrieveQueue(request) => {
                 chat_service_message::Inner::RetreiveQueue(
                     chat_service_message::GetMessageRequest {
-                        blinded_address: Some(request.blinded_address_secret.into()),
+                        blinded_address: Some(request.blinded_address.into()),
                         delivery_id: request.server_delivery_id.to_vec(),
                     },
                 )
@@ -286,8 +286,7 @@ impl From<super::ChatServiceMessage> for ChatServiceMessage {
             }
             super::ChatServiceMessage::SendMessage(send_message) => {
                 chat_service_message::Inner::SendMessage(chat_service_message::SendMessageRequest {
-                    blinded_address: Some(send_message.blinded_address_secret.into()),
-                    mls_message_out: send_message.mls_message_out_bytes,
+                    proof: Some(send_message.blinded_address_proof.into()),
                 })
             }
             super::ChatServiceMessage::StopListening(listener_id) => {
@@ -310,7 +309,7 @@ impl TryFrom<ChatServiceMessage> for super::ChatServiceMessage {
         Ok(match value.inner.ok_or(ProtoError)? {
             chat_service_message::Inner::RetreiveQueue(req) => {
                 Self::RetrieveQueue(crate::api::group::GetMessagesRequest {
-                    blinded_address_secret: req.blinded_address.ok_or(ProtoError)?.try_into()?,
+                    blinded_address: req.blinded_address.ok_or(ProtoError)?.try_into()?,
                     server_delivery_id: req
                         .delivery_id
                         .as_slice()
@@ -334,11 +333,7 @@ impl TryFrom<ChatServiceMessage> for super::ChatServiceMessage {
             chat_service_message::Inner::QueueEmpty(_) => Self::QueueEmpty,
             chat_service_message::Inner::SendMessage(send_message) => {
                 Self::SendMessage(crate::api::group::SendMessageRequest {
-                    blinded_address_secret: send_message
-                        .blinded_address
-                        .ok_or(ProtoError)?
-                        .try_into()?,
-                    mls_message_out_bytes: send_message.mls_message_out,
+                    blinded_address_proof: send_message.proof.ok_or(ProtoError)?.try_into()?,
                 })
             }
             chat_service_message::Inner::StopListening(stop_listening) => Self::StopListening(
@@ -348,30 +343,6 @@ impl TryFrom<ChatServiceMessage> for super::ChatServiceMessage {
                 Self::Delivered(DeliveryStamp::try_from(vec.as_slice()).map_err(|()| ProtoError)?)
             }
         })
-    }
-}
-
-impl TryFrom<chat_service_message::BlindedAddressSecret> for super::BlindedAddressSecret {
-    type Error = ProtoError;
-
-    fn try_from(value: chat_service_message::BlindedAddressSecret) -> Result<Self, Self::Error> {
-        Ok(Self {
-            secret: value.secret.try_into().map_err(|_| ProtoError)?,
-            public: crate::crypto::blinded_address::BlindedAddressPublic(
-                value.public.try_into().map_err(|_| ProtoError)?,
-            ),
-        })
-    }
-}
-
-impl From<crate::crypto::blinded_address::BlindedAddressSecret>
-    for chat_service_message::BlindedAddressSecret
-{
-    fn from(value: crate::crypto::blinded_address::BlindedAddressSecret) -> Self {
-        Self {
-            secret: value.secret.into(),
-            public: value.public.0.into(),
-        }
     }
 }
 

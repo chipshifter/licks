@@ -32,7 +32,7 @@ use lib::{
         },
         group::SendMessageRequest,
     },
-    crypto::blinded_address::BlindedAddressSecret,
+    crypto::blinded_address::{BlindedAddressPublic, BlindedAddressSecret},
     identifiers::{AccountId, GroupIdentifier, LicksIdentifier},
 };
 
@@ -52,7 +52,7 @@ pub enum ProcessedMessage {
     /// that happens, this means that the epoch secret changes,
     /// and so the blinded address also changed. We include the
     /// new one and its epoch.
-    Commit(u64, BlindedAddressSecret, Vec<ProcessedCommit>),
+    Commit(u64, BlindedAddressPublic, Vec<ProcessedCommit>),
     ApplicationMessage(MlsApplicationMessage),
 }
 
@@ -234,7 +234,8 @@ impl GroupManager {
 
                         Ok(ProcessedMessage::Commit(
                             group.current_epoch(),
-                            Self::generate_blinded_address(&group)?,
+                            // TODO: Save blinded address secret somewhere and reuse it.
+                            Self::generate_blinded_address(&group)?.to_public(),
                             processed_commits,
                         ))
                     }
@@ -335,7 +336,7 @@ impl ClientProfile<'_> {
                 self.profile_manager.clone(),
                 group_id,
                 new_epoch,
-                new_blinded_address,
+                new_blinded_address.to_public(),
             )
             .await?;
 
@@ -519,8 +520,8 @@ impl ProfileManager {
             .request_unauthenticated(
                 self.profile.get_server(),
                 UnauthRequest::ChatService(ChatServiceMessage::SendMessage(SendMessageRequest {
-                    blinded_address_secret: GroupManager::generate_blinded_address(&group)?,
-                    mls_message_out_bytes: add_commit.commit_message.to_bytes()?,
+                    blinded_address_proof: GroupManager::generate_blinded_address(&group)?
+                        .create_proof(add_commit.commit_message.to_bytes()?),
                 })),
             )
             .await?;
@@ -555,8 +556,6 @@ impl ProfileManager {
             .load_mls_rs_group(group_id)
             .context("Group couldn't be found in database")?;
 
-        let blinded_address_secret = GroupManager::generate_blinded_address(&group)?;
-
         let application_message = {
             let bytes = proto::ApplicationMessage::from(message).encode_to_vec();
             let mls_message = &mut group.encrypt_application_message(&bytes, Vec::default())?;
@@ -564,12 +563,14 @@ impl ProfileManager {
             mls_message.to_bytes()?
         };
 
+        let blinded_address_proof =
+            GroupManager::generate_blinded_address(&group)?.create_proof(application_message);
+
         let resp = CONNECTIONS_MANAGER
             .request_unauthenticated(
                 self.profile.get_server(),
                 UnauthRequest::ChatService(ChatServiceMessage::SendMessage(SendMessageRequest {
-                    blinded_address_secret,
-                    mls_message_out_bytes: application_message,
+                    blinded_address_proof,
                 })),
             )
             .await?;

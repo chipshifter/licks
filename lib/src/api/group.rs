@@ -1,4 +1,4 @@
-use crate::crypto::blinded_address::BlindedAddressSecret;
+use crate::crypto::blinded_address::{BlindedAddressProof, BlindedAddressPublic};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -78,13 +78,11 @@ impl TryFrom<uuid::Uuid> for DeliveryStamp {
 // Hopefully will work for both users and groups
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct SendMessageRequest {
-    // The GroupId in contained within BlindedAddressZKAuthRequest.
-    pub blinded_address_secret: BlindedAddressSecret,
-    pub mls_message_out_bytes: Vec<u8>,
+    pub blinded_address_proof: BlindedAddressProof,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct GetMessagesRequest {
-    pub blinded_address_secret: BlindedAddressSecret,
+    pub blinded_address: BlindedAddressPublic,
     pub server_delivery_id: DeliveryStamp,
 }

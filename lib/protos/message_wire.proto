@@ -1,5 +1,6 @@
 syntax = "proto3";
 
+import "blinded_address.proto";
 import "empty.proto";
 import "identifiers.proto";
 import "signed_payload.proto";
@@ -7,13 +8,8 @@ import "credentials.proto";
 import "registration.proto";
 
 message ChatServiceMessage {
-    message BlindedAddressSecret {
-        bytes secret = 1;
-        bytes public = 2;
-    }
-
     message GetMessageRequest {
-        BlindedAddressSecret blinded_address = 1;
+        BlindedAddressPublic blinded_address = 1;
         bytes delivery_id = 2;
     }
 
@@ -23,13 +19,12 @@ message ChatServiceMessage {
     }
 
     message SendMessageRequest {
-        BlindedAddressSecret blinded_address = 1;
-        bytes mls_message_out = 2;
+        BlindedAddressProof proof = 1;
     }
 
     message StartListeningRequest {
         bytes listener_id = 1;
-        BlindedAddressSecret blinded_address = 2;
+        BlindedAddressPublic blinded_address = 2;
     }
 
 
