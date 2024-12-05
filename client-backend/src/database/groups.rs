@@ -82,11 +82,12 @@ mod tests {
         let group_name = "Group name".to_string();
         let group_description = "Group description".to_string();
         let epoch = 1;
-        let blinded_address = {
+        let blinded_address_bytes = {
             let secret = random_bytes::<16>();
 
-            BlindedAddressSecret::from_group_secret(&secret)
+            BlindedAddressSecret::from_group_secret(&secret).to_bytes()
         };
+        let blinded_address = BlindedAddressSecret::from_bytes(blinded_address_bytes);
 
         assert!(
             db.get_group_info(group_id).is_err(),
@@ -99,7 +100,7 @@ mod tests {
                 group_name.clone(),
                 Some(group_description.clone()),
                 epoch,
-                blinded_address.clone()
+                BlindedAddressSecret::from_bytes(blinded_address_bytes),
             ),
             Ok(()),
             "Adding group info works"
@@ -111,7 +112,7 @@ mod tests {
                 group_name.clone(),
                 Some(group_description.clone()),
                 epoch,
-                blinded_address.clone()
+                BlindedAddressSecret::from_bytes(blinded_address_bytes),
             )
         );
 
@@ -128,11 +129,12 @@ mod tests {
         );
 
         let new_epoch = 2;
-        let new_blinded_address = {
+        let new_blinded_address_bytes = {
             let secret = random_bytes::<16>();
 
-            BlindedAddressSecret::from_group_secret(&secret)
+            BlindedAddressSecret::from_group_secret(&secret).to_bytes()
         };
+        let new_blinded_address = BlindedAddressSecret::from_bytes(new_blinded_address_bytes);
 
         assert_eq!(
             db.add_group_info(
@@ -140,7 +142,7 @@ mod tests {
                 group_name.clone(),
                 Some(group_description.clone()),
                 new_epoch,
-                new_blinded_address.clone()
+                BlindedAddressSecret::from_bytes(new_blinded_address_bytes),
             ),
             Ok(()),
             "Adding group info works"
@@ -152,7 +154,7 @@ mod tests {
                 group_name.clone(),
                 Some(group_description),
                 new_epoch,
-                new_blinded_address.clone()
+                BlindedAddressSecret::from_bytes(new_blinded_address_bytes),
             )
         );
 
@@ -182,10 +184,10 @@ mod tests {
         let group_id = GroupIdentifier::generate_id();
         let group_name = "Group name".to_string();
         let epoch = 1;
-        let blinded_address = {
+        let blinded_address_bytes = {
             let secret = random_bytes::<16>();
 
-            BlindedAddressSecret::from_group_secret(&secret)
+            BlindedAddressSecret::from_group_secret(&secret).to_bytes()
         };
 
         assert_eq!(
@@ -194,7 +196,7 @@ mod tests {
                 group_name.clone(),
                 None,
                 epoch,
-                blinded_address.clone()
+                BlindedAddressSecret::from_bytes(blinded_address_bytes),
             ),
             Ok(()),
             "Adding group info works"
@@ -202,7 +204,12 @@ mod tests {
 
         assert_eq!(
             db.get_group_info(group_id).expect("No database error"),
-            (group_name.clone(), None, epoch, blinded_address)
+            (
+                group_name.clone(),
+                None,
+                epoch,
+                BlindedAddressSecret::from_bytes(blinded_address_bytes)
+            )
         );
     }
 }

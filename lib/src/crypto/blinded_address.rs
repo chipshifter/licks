@@ -107,7 +107,7 @@ impl TryFrom<proto::BlindedAddressPublic> for BlindedAddressPublic {
 /// The secret value of the blinded address, which can be used to generate proofs
 /// (see [`BlindedAddressProof`]).
 // Small note: PartialEq implementation is constant-time and handled by ed25519_dalek
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct BlindedAddressSecret {
     ed25519_secret: ed25519_dalek::SigningKey,
 }
