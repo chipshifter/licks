@@ -1,13 +1,16 @@
 //! "Blinded Addresses" is the name of the mechanism used to store MLS messages
 //! on the server.
 //!
+//! ### Introduction to Blinded Addresss
+//!
 //! The goal of Blinded Addresses is to allow messages being stored on the server, in
 //! a way that the server without revealing any information as to what group these messages
 //! belong for.
 //!
 //! The idea behind it is simple: users in a group (during a specific epoch K) all share a
-//! secret S. This secret is not known to anyone outside to group. Then, using this secret S,
-//! a blinded address key is generated as BK = KDF(S). Note that knowledge of BK does not reveal S.
+//! group secret S. This secret is not known to anyone outside to group. Then, using this secret S,
+//! a blinded address secret key is generated as SK = KDF(S). Note that the KDF properties guarantee
+//! that knowledge of SK does not reveal S.
 //!
 //! This blinded address key can then be used as an Ed25519 secret key, from which we can dedude
 //! the public key PK. To send a message M to the server, the user sends (M, PK, Sig_M) with Sig_M
@@ -17,6 +20,8 @@
 //! If and only if a user knows S, then they are able to generate a (M, PK, Sig_M) such that PK can be
 //! retrieved from S. Therefore, all users in a group knowing S can access the blinded address by computing
 //! PK and retrieving the messages (currently using an unauthenticated request).
+//!
+//! The server has no knowledge of the group secret S, and PK addresses are "random".
 use hkdf::Hkdf;
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
@@ -28,6 +33,9 @@ use crate::{api::connection::proto, error::ProtoError};
 #[error("The blinded address verification failed")]
 pub struct BlindedAddressVerificationError;
 
+/// A public proof that is used to send a message to the server, which
+/// can verify that the user knows the secret value of the blinded address
+/// they're sending their message to, by checking the proof's signature.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct BlindedAddressProof {
     pub ba_public: BlindedAddressPublic,
@@ -76,8 +84,9 @@ impl TryFrom<proto::BlindedAddressProof> for BlindedAddressProof {
 
 pub const BLINDED_ADDRESS_PUBLIC_LENGTH: usize = ed25519_dalek::PUBLIC_KEY_LENGTH;
 
+/// The blinded address's public value (corresponding to PK, the ed25519's public key)
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone, Copy, Hash, PartialOrd, Ord)]
-pub struct BlindedAddressPublic(pub [u8; ed25519_dalek::PUBLIC_KEY_LENGTH]);
+pub struct BlindedAddressPublic(pub [u8; BLINDED_ADDRESS_PUBLIC_LENGTH]);
 
 impl From<BlindedAddressPublic> for proto::BlindedAddressPublic {
     fn from(value: BlindedAddressPublic) -> Self {
@@ -95,6 +104,9 @@ impl TryFrom<proto::BlindedAddressPublic> for BlindedAddressPublic {
     }
 }
 
+/// The secret value of the blinded address, which can be used to generate proofs
+/// (see [`BlindedAddressProof`]).
+// Small note: PartialEq implementation is constant-time and handled by ed25519_dalek
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct BlindedAddressSecret {
     ed25519_secret: ed25519_dalek::SigningKey,
@@ -164,7 +176,21 @@ mod tests {
     use super::*;
 
     #[test]
-    pub fn test_verify_blinded_group_address() {
+    // We test whether the generation on blinded addresses
+    // is always the same if the group secret S is the same
+    pub fn test_deterministic_blinded_address() {
+        let random_group_secret = random_bytes::<16>();
+        let ba_secret_1 = BlindedAddressSecret::from_group_secret(&random_group_secret);
+        let ba_secret_2 = BlindedAddressSecret::from_group_secret(&random_group_secret);
+
+        assert_eq!(
+            ba_secret_1, ba_secret_2,
+            "Blinded address secrets generated from the same group secret should be equal."
+        );
+    }
+
+    #[test]
+    pub fn test_verify_blinded_address() {
         let random_secret = random_bytes::<16>();
         let mut ba_secret = BlindedAddressSecret::from_group_secret(&random_secret);
 
