@@ -167,21 +167,23 @@ fn App() -> Element {
 
     rsx! {
         div {
+            display: "flex",
+            overflow: "hidden",
             width: "inherit",
             height: "inherit",
-            overflow: "hidden",
-            display: "flex",
+            max_height: "100%",
             div {
-                class: "tabs",
-                width: "100%",
-                max_width: "300px",
-                height: "100%",
-                background_color: "var(--foreground)",
+                display: "flex",
                 flex_direction: "column",
+                overflow: "hidden",
+                width: "inherit",
+                height: "inherit",
                 max_width: "300px",
+                background_color: "var(--foreground)",
+                align_content: "stretch",
                 div {
+                    flex_shrink: "0",
                     display: "flex",
-                    align_items: "stretch",
                     height: "60px",
                     class: "tab-buttons",
                     div {
@@ -210,6 +212,7 @@ fn App() -> Element {
                     }
                 }
                 div {
+                    flex_shrink: "0",
                     id: "tab-name",
                     display: "flex",
                     align_items: "center",
@@ -224,7 +227,11 @@ fn App() -> Element {
                         {tab_name}
                     }
                 }
-                {tab_rsx}
+                div {
+                    flex_grow: "1",
+                    overflow_y: "scroll",
+                    {tab_rsx}
+                }
             }
             div {
                 background_color: "var(--background)",

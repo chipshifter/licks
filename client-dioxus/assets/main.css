@@ -61,14 +61,6 @@ div.loading {
     background-color: var(--background);
 }
 
-div.tabs {
-    width: 100%;
-    max-width: 400px;
-    height: 100%;
-
-    background-color: var(--foreground);
-}
-
 div.tab-buttons > div {
     flex-grow: 1;
     margin: 0;

@@ -110,11 +110,8 @@ pub fn GroupsTab(
 
     rsx! {
         div {
-            id: "group-tab",
             display: "flex",
             flex_direction: "column",
-            overflow_x: "none",
-            overflow_y: "scroll",
             section {
                 display: "flex",
                 div {
