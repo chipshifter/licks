@@ -1,9 +1,8 @@
 #![allow(non_snake_case)]
 
-use std::sync::{Arc, OnceLock};
+use std::sync::OnceLock;
 
 use client_backend::{
-    account::GroupIdentifier,
     client::{Client, ClientProfile},
     ui::GroupUi,
 };
@@ -120,19 +119,19 @@ fn App() -> Element {
 
         group_ids
             .into_iter()
-            // TODO: Load groups and group names from SQLite
-            .map(|group_id| {
-                let group_name = if group_id == GroupIdentifier::self_id() {
-                    Arc::new("Personal Notes".to_string())
-                } else {
-                    group_id.to_string().into()
-                };
-
-                GroupUi {
-                    group_identifier: group_id,
-                    group_name,
-                    last_message: None,
-                }
+            // TODO: Filter_map quietly removes errors.
+            // If a group fails or is corrupted, we want to log it or tell the user
+            .filter_map(|group_id| {
+                get_default_profile()
+                    .sqlite_database
+                    .get_group_info(group_id)
+                    .ok()
+                    .map(|ok| (group_id, ok))
+            })
+            .map(|group_info| GroupUi {
+                group_identifier: group_info.0,
+                group_name: group_info.1 .0.into(),
+                last_message: None,
             })
             .collect()
     });

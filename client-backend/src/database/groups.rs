@@ -32,6 +32,7 @@ impl Database {
         Ok(())
     }
 
+    // TODO: Make it return `GroupUi` instead? Or have a separate `get_group_ui` function for that.
     pub fn get_group_info(
         &self,
         group_id: GroupIdentifier,
