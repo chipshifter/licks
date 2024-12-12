@@ -59,11 +59,7 @@ pub fn GroupsTab(
         rsx! {
             div {
                 padding: "8px",
-                class: if is_selected_group {
-                    "group-tab-button selected"
-                } else {
-                    "group-tab-button"
-                },
+                class: if is_selected_group { "group-tab-button selected" } else { "group-tab-button" },
                 onclick: move |_| {
                     info!("Selecting group {group:?}");
                     *selected_group.write() = group.clone();
@@ -73,7 +69,7 @@ pub fn GroupsTab(
                     min_height: "60px",
                     border_radius: "8px",
                     margin_right: "6px",
-                    background_color: "{group_color}"
+                    background_color: "{group_color}",
                 }
                 div {
                     display: "flex",
@@ -109,11 +105,8 @@ pub fn GroupsTab(
     let mut is_create_group_modal_open = use_signal(|| false);
 
     rsx! {
-        div {
-            display: "flex",
-            flex_direction: "column",
-            section {
-                display: "flex",
+        div { display: "flex", flex_direction: "column",
+            section { display: "flex",
                 div {
                     display: "flex",
                     align_items: "center",
@@ -122,12 +115,12 @@ pub fn GroupsTab(
                     onclick: move |_| {
                         *is_join_group_modal_open.write() = true;
                     },
-                    JoinGroupModal { selected_group, group_list, is_open: is_join_group_modal_open },
-                    ImageIcon {
-                        size: 30,
-                        icon_name: "link_add.png",
-                        button: true
+                    JoinGroupModal {
+                        selected_group,
+                        group_list,
+                        is_open: is_join_group_modal_open,
                     }
+                    ImageIcon { size: 30, icon_name: "link_add.png", button: true }
                 }
                 div {
                     display: "flex",
@@ -137,12 +130,12 @@ pub fn GroupsTab(
                     onclick: move |_| {
                         *is_create_group_modal_open.write() = true;
                     },
-                    CreateGroupModal { selected_group, group_list, is_open: is_create_group_modal_open },
-                    ImageIcon {
-                        size: 30,
-                        icon_name: "plus.png",
-                        button: true
+                    CreateGroupModal {
+                        selected_group,
+                        group_list,
+                        is_open: is_create_group_modal_open,
                     }
+                    ImageIcon { size: 30, icon_name: "plus.png", button: true }
                 }
             }
             {groups_rendered}
@@ -189,51 +182,25 @@ pub fn CreateGroupModal(
     };
 
     let child_element = rsx! {
-        div {
-            width: "100%",
-            height: "100%",
-            h3 { "Create group"}
-            p {
-                "Choose a name and description for your group in the boxes below"
-            }
-            form {
-                class: "create-group",
-                onsubmit: create_group_submit,
+        div { width: "100%", height: "100%",
+            h3 { "Create group" }
+            p { "Choose a name and description for your group in the boxes below" }
+            form { class: "create-group", onsubmit: create_group_submit,
                 div {
-                    label {
-                        r#for: "group-name",
-                        "Name"
-                    },
-                    input {
-                        r#type: "text",
-                        autofocus: true,
-                        name: "group-name"
-                    },
-                },
-                div {
-                    label {
-                        r#for: "group-name",
-                        "Description"
-                    },
-                    input {
-                        r#type: "text",
-                        name: "group-description"
-                    },
-                },
-                input {
-                    r#type: "submit",
-                    value: "Join!"
+                    label { r#for: "group-name", "Name" }
+                    input { r#type: "text", autofocus: true, name: "group-name" }
                 }
+                div {
+                    label { r#for: "group-name", "Description" }
+                    input { r#type: "text", name: "group-description" }
+                }
+                input { r#type: "submit", value: "Join!" }
             }
         }
     };
 
     rsx! {
-        Modal {
-            title: "Create a new group",
-            child_element,
-            is_open
-        }
+        Modal { title: "Create a new group", child_element, is_open }
     }
 }
 
@@ -285,34 +252,17 @@ pub fn JoinGroupModal(
     };
 
     let child_element = rsx! {
-        div {
-            width: "100%",
-            height: "100%",
-            h3 { "Invite code "}
-            p {
-                "Paste your invite in the text box below, then just press the Join button!"
-            }
-            form {
-                class: "create-group",
-                onsubmit: join_group_submit,
-                input {
-                    r#type: "text",
-                    name: "welcome-key",
-                    autofocus: true,
-                }
-                input {
-                    r#type: "submit",
-                    value: "Join!"
-                }
+        div { width: "100%", height: "100%",
+            h3 { "Invite code " }
+            p { "Paste your invite in the text box below, then just press the Join button!" }
+            form { class: "create-group", onsubmit: join_group_submit,
+                input { r#type: "text", name: "welcome-key", autofocus: true }
+                input { r#type: "submit", value: "Join!" }
             }
         }
     };
 
     rsx! {
-        Modal {
-            title: "Join a new group",
-            child_element,
-            is_open,
-        }
+        Modal { title: "Join a new group", child_element, is_open }
     }
 }

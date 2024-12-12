@@ -81,31 +81,22 @@ fn LoadingScreen() -> Element {
         Some(Ok(())) => App(),
         Some(Err(())) => {
             rsx! {
-                div {
-                    class: "loading",
-                    h3 {
-                        "Woops! We couldn't create an account. Is the server on?"
-                    }
+                div { class: "loading",
+                    h3 { "Woops! We couldn't create an account. Is the server on?" }
                 }
             }
         }
         None => {
             rsx! {
-                div {
-                    class: "loading",
-                    h3 {
-                        "Setting up Licks!..."
-                    }
+                div { class: "loading",
+                    h3 { "Setting up Licks!..." }
                 }
             }
         }
     };
 
     rsx! {
-        link {
-            rel: "stylesheet",
-            href: "/assets/main.css"
-        },
+        link { rel: "stylesheet", href: "/assets/main.css" }
         {rendered}
     }
 }
@@ -156,8 +147,8 @@ fn App() -> Element {
             "var(--primary)",
         ),
         Tab::Contacts => (
-            rsx!("Contacts tab"),
-            rsx!("Contacts panel"),
+            rsx!( "Contacts tab" ),
+            rsx!( "Contacts panel" ),
             "Contacts",
             "var(--secondary)",
         ),
@@ -188,26 +179,17 @@ fn App() -> Element {
                     div {
                         background_color: "var(--primary)",
                         onclick: move |_| tab.set(Tab::Groups),
-                        ImageIcon {
-                            size: 40,
-                            icon_name: "globe.png"
-                        }
+                        ImageIcon { size: 40, icon_name: "globe.png" }
                     }
                     div {
                         background_color: "var(--secondary)",
                         onclick: move |_| tab.set(Tab::Contacts),
-                        ImageIcon {
-                            size: 40,
-                            icon_name: "contact.png"
-                        }
+                        ImageIcon { size: 40, icon_name: "contact.png" }
                     }
                     div {
                         background_color: "var(--third)",
                         onclick: move |_| tab.set(Tab::Settings),
-                        ImageIcon {
-                            size: 40,
-                            icon_name: "wrench.png"
-                        }
+                        ImageIcon { size: 40, icon_name: "wrench.png" }
                     }
                 }
                 div {
@@ -220,17 +202,9 @@ fn App() -> Element {
                     width: "100%",
                     border_radius: "0 0 12px 12px",
                     background_color: tab_color,
-                    b {
-                        font_size: "x-large",
-                        color: "var(--text-dark)",
-                        {tab_name}
-                    }
+                    b { font_size: "x-large", color: "var(--text-dark)", {tab_name} }
                 }
-                div {
-                    flex_grow: "1",
-                    overflow_y: "scroll",
-                    {tab_rsx}
-                }
+                div { flex_grow: "1", overflow_y: "scroll", {tab_rsx} }
             }
             div {
                 background_color: "var(--background)",

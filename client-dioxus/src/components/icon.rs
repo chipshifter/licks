@@ -16,8 +16,8 @@ pub fn ImageIcon(props: ImageIconProps) -> Element {
         img {
             width: props.size,
             height: props.size,
-            class: class,
-            src: format!("assets/icons/{}", props.icon_name)
+            class,
+            src: format!("assets/icons/{}", props.icon_name),
         }
     }
 }

@@ -18,7 +18,7 @@ use crate::{
 pub fn ChatPanel(selected_group: Signal<GroupUi>) -> Element {
     let mut input_message = use_signal(String::new);
 
-    let messages: Memo<Vec<Option<VNode>>> = use_memo(move || {
+    let messages: Memo<Vec<Result<VNode, RenderError>>> = use_memo(move || {
         let messages_lock: Vec<MessageUi> = MESSAGES
             .read()
             .get(&selected_group.read())
@@ -29,10 +29,7 @@ pub fn ChatPanel(selected_group: Signal<GroupUi>) -> Element {
             .iter()
             .map(|message_ui| {
                 rsx! {
-                    div {
-                        class: "message",
-                        "{message_ui}"
-                    }
+                    div { class: "message", "{message_ui}" }
                 }
             })
             .collect()
@@ -122,10 +119,11 @@ pub fn ChatPanel(selected_group: Signal<GroupUi>) -> Element {
                     onclick: move |_| {
                         *is_invite_modal_open.write() = true;
                     },
-                    InviteUsernameToGroupModal { selected_group, is_open: is_invite_modal_open },
+                    InviteUsernameToGroupModal { selected_group, is_open: is_invite_modal_open }
                     ImageIcon {
                         size: 32,
-                        icon_name: "contact_plus.png"
+                        icon_name: "contact_plus.png",
+                        button: true,
                     }
                 }
             }
@@ -157,10 +155,7 @@ pub fn ChatPanel(selected_group: Signal<GroupUi>) -> Element {
                     value: "{input_message}",
                     oninput: move |event| input_message.set(event.value()),
                 }
-                input {
-                    r#type: "submit",
-                    display: "none"
-                }
+                input { r#type: "submit", display: "none" }
                 // Send button
                 div {
                     display: "flex",
@@ -169,12 +164,9 @@ pub fn ChatPanel(selected_group: Signal<GroupUi>) -> Element {
                     height: "100%",
                     width: "auto",
                     onclick: move |_| on_press_send(),
-                    ImageIcon {
-                        size: 30,
-                        icon_name: "send_arrow.png"
-                    }
+                    ImageIcon { size: 30, icon_name: "send_arrow.png", button: true }
                 }
-
+            
             }
         }
     }
@@ -230,37 +222,22 @@ pub fn InviteUsernameToGroupModal(
     };
 
     let child_element = rsx! {
-        div {
-            width: "100%",
-            height: "100%",
+        div { width: "100%", height: "100%",
             h3 { "Invite user to group" }
-            form {
-                class: "invite-input",
-                onsubmit: create_welcome,
+            form { class: "invite-input", onsubmit: create_welcome,
                 div {
-                    label {
-                        r#for: "username",
-                        "Username"
-                    },
-                    input {
-                        r#type: "text",
-                        autofocus: true,
-                        name: "username"
-                    },
-                },
+                    label { r#for: "username", "Username" }
+                    input { r#type: "text", autofocus: true, name: "username" }
+                }
                 input {
                     r#type: "submit",
-                    value: "Create and copy invite code to clipboard"
+                    value: "Create and copy invite code to clipboard",
                 }
             }
         }
     };
 
     rsx! {
-        Modal {
-            title: "Invite user to group",
-            child_element,
-            is_open
-        }
+        Modal { title: "Invite user to group", child_element, is_open }
     }
 }

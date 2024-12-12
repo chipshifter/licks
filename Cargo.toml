@@ -22,3 +22,15 @@ missing_errors_doc = "allow"
 redundant_else = "allow"
 missing_panics_doc = "allow"
 missing_assert_message = "warn"
+
+[profile]
+
+[profile.wasm-dev]
+inherits = "dev"
+opt-level = 1
+
+[profile.server-dev]
+inherits = "dev"
+
+[profile.android-dev]
+inherits = "dev"

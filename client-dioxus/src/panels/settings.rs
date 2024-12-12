@@ -17,10 +17,7 @@ pub fn SettingsPanel() -> Element {
             justify_content: "center",
             align_items: "center",
             gap: "10px",
-            ImageIcon {
-                size: 80,
-                icon_name: "licker.png"
-            }
+            ImageIcon { size: 80, icon_name: "licker.png" }
             h3 { "Licks Top Secret Dev Version" }
         }
     }

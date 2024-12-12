@@ -3,7 +3,11 @@ use dioxus::prelude::*;
 use crate::components::icon::ImageIcon;
 
 #[component]
-pub fn Modal(title: &'static str, child_element: Option<VNode>, is_open: Signal<bool>) -> Element {
+pub fn Modal(
+    title: &'static str,
+    child_element: Result<VNode, RenderError>,
+    is_open: Signal<bool>,
+) -> Element {
     if *is_open.read() {
         rsx! {
             div {
@@ -41,8 +45,7 @@ pub fn Modal(title: &'static str, child_element: Option<VNode>, is_open: Signal<
                     align_items: "center",
                     justify_content: "space-between",
                     padding: "1rem",
-                    div {
-                        width: "100%",
+                    div { width: "100%",
                         div {
                             float: "right",
                             onclick: move |e| {
@@ -52,7 +55,7 @@ pub fn Modal(title: &'static str, child_element: Option<VNode>, is_open: Signal<
                             ImageIcon {
                                 size: 24,
                                 icon_name: "cross.png",
-                                button: true
+                                button: true,
                             }
                         }
                         h1 {
@@ -69,6 +72,6 @@ pub fn Modal(title: &'static str, child_element: Option<VNode>, is_open: Signal<
             }
         }
     } else {
-        None
+        rsx! {}
     }
 }
