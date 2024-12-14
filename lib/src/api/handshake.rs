@@ -1,14 +1,3 @@
-#[derive(Clone, Copy, Debug)]
-enum HandshakeProgress {
-    StartServer, // Recv E
-    ServerSendES,
-    ServerRecvS,
-    StartClient, // Send E
-    ClientRecvES,
-    ClientSendS,
-    Transport,
-}
-
 #[derive(Default)]
 #[allow(non_camel_case_types)]
 enum SupportedHandshakes {
@@ -27,277 +16,245 @@ impl SupportedHandshakes {
     }
 }
 
-#[repr(u8)]
-enum RpcCode {
-    Ok = 0,
-    Err = 1,
-    Unknown,
+/// A vector of bytes with a fixed maximum size of 65535.
+#[derive(Debug, Clone)]
+pub struct NoiseMessageBuffer {
+    len: u16,
+    buffer: Box<[u8; u16::MAX as usize]>,
 }
-impl RpcCode {
-    fn from_u8(v: u8) -> Self {
-        match v {
-            0 => Self::Ok,
-            1 => Self::Err,
-            _ => Self::Unknown,
+
+impl Default for NoiseMessageBuffer {
+    fn default() -> Self {
+        Self {
+            len: 0,
+            // Does not initialize on stack on optimized builds.
+            // Allocates 65.5kB on the heap
+            buffer: Box::new([0; u16::MAX as usize]),
         }
     }
 }
 
-impl HandshakeProgress {
-    fn handshake(self) -> bool {
-        !matches!(self, Self::Transport)
+impl NoiseMessageBuffer {
+    /// Writes `bytes` into the internal buffer.
+    ///
+    /// NOTE: Silently truncates `bytes` if the length of `bytes`
+    /// is longer than 65535.
+    #[inline(always)]
+    pub fn write(&mut self, bytes: &[u8]) {
+        let copy_length = std::cmp::min(bytes.len(), u16::MAX as usize);
+
+        self.buffer[..copy_length].copy_from_slice(&bytes[..copy_length]);
+        self.len = copy_length as u16;
     }
-    fn send(self) -> bool {
-        match self {
-            HandshakeProgress::StartServer
-            | HandshakeProgress::ServerRecvS
-            | HandshakeProgress::ClientRecvES => false,
-            HandshakeProgress::ServerSendES
-            | HandshakeProgress::StartClient
-            | HandshakeProgress::ClientSendS
-            | HandshakeProgress::Transport => true,
-        }
+
+    /// Returns a mutable array of the internal buffer.
+    ///
+    /// This is used for `snow`, who checks the maximum message size
+    /// internally. This does not update `len`.
+    ///
+    /// Prefer [`Self::write`] which checks buffer sizes.
+    #[inline(always)]
+    pub fn as_mut_unchecked(&mut self) -> &mut [u8] {
+        self.buffer.as_mut_slice()
     }
-    fn recv(self) -> bool {
-        match self {
-            HandshakeProgress::StartServer
-            | HandshakeProgress::ServerRecvS
-            | HandshakeProgress::ClientRecvES
-            | HandshakeProgress::Transport => true,
-            HandshakeProgress::ServerSendES
-            | HandshakeProgress::StartClient
-            | HandshakeProgress::ClientSendS => false,
-        }
+
+    /// This is used for `snow`
+    #[inline(always)]
+    pub fn set_len_unchecked(&mut self, new_length: u16) {
+        self.len = new_length;
+    }
+
+    #[inline(always)]
+    pub fn read(&self) -> &[u8] {
+        &self.buffer[..self.len as usize]
     }
 }
 
-pub enum HandshakeResult {
-    OkHandshake(Vec<u8>),
-    OkTransport(Vec<u8>),
-    Err(Vec<u8>),
-    Closed,
-}
-
-impl HandshakeResult {
-    pub fn is_terminal(&self) -> bool {
-        matches!(self, Self::Err(..) | Self::Closed)
-    }
-    pub fn is_err(&self) -> bool {
-        matches!(self, HandshakeResult::Err(..))
-    }
-    pub fn to_bytes(self) -> Option<Vec<u8>> {
-        match self {
-            HandshakeResult::OkHandshake(vec)
-            | HandshakeResult::OkTransport(vec)
-            | HandshakeResult::Err(vec) => Some(vec),
-            HandshakeResult::Closed => None,
-        }
+impl AsRef<[u8]> for NoiseMessageBuffer {
+    fn as_ref(&self) -> &[u8] {
+        self.read()
     }
 }
 
-// idealy we would want to use a coroutine in the future instead of an enum for state
-pub struct NoiseState<S: HandshakeSupplier> {
-    handshake_state: Option<Box<snow::HandshakeState>>,
-    transport_state: Option<Box<snow::TransportState>>,
-    channel_hash: Option<Vec<u8>>,
-    buffer: Vec<u8>,
-    #[allow(dead_code)]
-    supplier: S,
-    progress: HandshakeProgress,
+pub struct ClientHandshake {
+    buffer: NoiseMessageBuffer,
+    inner: snow::HandshakeState,
 }
 
-pub enum StateType {
-    Initiator,
-    Responder,
-}
-
-/// This trait is a helper trait for the creation and destruction of man
-pub trait HandshakeSupplier {
-    type Error;
-    fn new_handshake_state(
-        &self,
-        r#type: StateType,
-    ) -> Result<Box<snow::HandshakeState>, Self::Error>
-    where
-        <Self as HandshakeSupplier>::Error: From<snow::Error>,
-    {
+impl ClientHandshake {
+    // TODO: Add client hash for auth challenge?
+    pub fn prepare_handshake() -> Result<Self, snow::Error> {
         let builder = snow::Builder::new(SupportedHandshakes::default().into_snow_params());
         let keys = builder.generate_keypair()?;
         let builder = builder.local_private_key(&keys.private);
-        match r#type {
-            StateType::Initiator => Ok(Box::new(builder.build_initiator()?)),
-            StateType::Responder => Ok(Box::new(builder.build_responder()?)),
-        }
+
+        let mut client = Self {
+            buffer: NoiseMessageBuffer::default(),
+            inner: builder.build_initiator()?,
+        };
+
+        let new_len = client
+            .inner
+            .write_message(&[], client.buffer.as_mut_unchecked())?;
+        client.buffer.set_len_unchecked(new_len as u16);
+
+        Ok(client)
+    }
+
+    pub fn complete_handshake(
+        mut self,
+        server_response: &[u8],
+    ) -> Result<(NoiseTransport, NoiseMessageBuffer), snow::Error> {
+        let new_len = self
+            .inner
+            .read_message(&server_response, self.buffer.as_mut_unchecked())?;
+        self.buffer.set_len_unchecked(new_len as u16);
+
+        let new_len = self
+            .inner
+            .write_message(&[], self.buffer.as_mut_unchecked())?;
+        self.buffer.set_len_unchecked(new_len as u16);
+
+        let handshake_response = self.buffer.clone();
+        // "Empty" buffer to reuse it for Transport mode
+        self.buffer.set_len_unchecked(0);
+
+        Ok((
+            NoiseTransport {
+                buffer: self.buffer,
+                inner: self.inner.into_transport_mode()?,
+            },
+            handshake_response,
+        ))
     }
 }
 
-impl<S: HandshakeSupplier> NoiseState<S> {
-    pub fn new_client(supplier: S) -> Result<Self, S::Error>
-    where
-        <S as HandshakeSupplier>::Error: From<snow::Error>,
-    {
-        let b = vec![0; u16::MAX as usize];
+pub struct ServerHandshake {
+    buffer: NoiseMessageBuffer,
+    inner: snow::HandshakeState,
+}
 
-        Ok(Self {
-            handshake_state: Some(supplier.new_handshake_state(StateType::Initiator)?),
-            transport_state: None,
-            channel_hash: None,
-            supplier,
-            buffer: b,
-            progress: HandshakeProgress::StartClient,
-        })
-    }
+pub struct NoiseTransport {
+    buffer: NoiseMessageBuffer,
+    inner: snow::TransportState,
+}
 
-    pub fn new_server(supplier: S) -> Result<Self, S::Error>
-    where
-        <S as HandshakeSupplier>::Error: From<snow::Error>,
-    {
-        let b = vec![0; u16::MAX as usize];
+impl ServerHandshake {
+    pub fn respond(client_initiation: &[u8]) -> Result<Self, snow::Error> {
+        let builder = snow::Builder::new(SupportedHandshakes::default().into_snow_params());
+        let keys = builder.generate_keypair()?;
+        let builder = builder.local_private_key(&keys.private);
 
-        Ok(Self {
-            handshake_state: Some(supplier.new_handshake_state(StateType::Responder)?),
-            transport_state: None,
-            channel_hash: None,
-            supplier,
-            buffer: b,
-            progress: HandshakeProgress::StartServer,
-        })
-    }
-
-    pub fn is_handshake(&self) -> bool {
-        self.progress.handshake()
-    }
-
-    pub fn can_send(&self) -> bool {
-        self.progress.send()
-    }
-
-    pub fn can_recv(&self) -> bool {
-        self.progress.recv()
-    }
-
-    pub fn receive_bytes(&mut self, bytes: &mut [u8]) -> HandshakeResult {
-        let progress = self.progress;
-
-        let mut inner = |next: HandshakeProgress| {
-            let mut v = Vec::new();
-            let Some(hs) = self.handshake_state.as_mut().map(AsMut::as_mut) else {
-                return HandshakeResult::Err(vec![1]);
-            };
-
-            match RpcCode::from_u8(bytes[0]) {
-                RpcCode::Ok => {}
-                RpcCode::Err => return HandshakeResult::Closed,
-                RpcCode::Unknown => return HandshakeResult::Err(vec![1]),
-            }
-
-            let Ok(sz) = hs.read_message(&bytes[1..], &mut self.buffer) else {
-                return HandshakeResult::Err(vec![1]);
-            };
-
-            v.reserve_exact(sz + 1);
-            v.extend(self.buffer[..sz].iter());
-
-            self.progress = next;
-
-            HandshakeResult::OkHandshake(v)
+        let mut server = Self {
+            buffer: NoiseMessageBuffer::default(),
+            inner: builder.build_responder()?,
         };
 
-        match progress {
-            HandshakeProgress::StartServer => inner(HandshakeProgress::ServerSendES),
-            HandshakeProgress::ServerRecvS => {
-                let f = inner(HandshakeProgress::Transport);
-                if !f.is_terminal() {
-                    let hs = self.handshake_state.take().unwrap();
-                    self.channel_hash = Some(hs.get_handshake_hash().to_vec());
-                    match hs.into_transport_mode() {
-                        Ok(ts) => {
-                            self.transport_state = Some(Box::new(ts));
-                        }
-                        Err(_e) => {
-                            // TODO log error
-                            return HandshakeResult::Err(vec![1]);
-                        }
-                    }
-                }
-                f
-            }
-            HandshakeProgress::ClientRecvES => inner(HandshakeProgress::ClientSendS),
-            // Non-recv
-            HandshakeProgress::StartClient
-            | HandshakeProgress::ServerSendES
-            | HandshakeProgress::ClientSendS => HandshakeResult::Err(vec![1]),
-            HandshakeProgress::Transport => {
-                const MAX_PER_DECRYPT_SIZE: usize = (u16::MAX - 16) as usize;
-                match RpcCode::from_u8(bytes[0]) {
-                    RpcCode::Ok => {}
-                    RpcCode::Err => return HandshakeResult::Closed,
-                    RpcCode::Unknown => return HandshakeResult::Err(vec![1]),
-                }
-                let mut fin = Vec::new();
-                let Some(ts) = self.transport_state.as_mut() else {
-                    return HandshakeResult::Err(vec![1]);
-                };
+        let _new_len = server
+            .inner
+            .read_message(&client_initiation, server.buffer.as_mut_unchecked())?;
+        // server.buffer.set_len_unchecked(new_len as u16);
 
-                for chunk in bytes[1..].chunks(MAX_PER_DECRYPT_SIZE) {
-                    let Ok(sz) = ts.read_message(chunk, &mut self.buffer) else {
-                        return HandshakeResult::Err(vec![1]);
-                    };
-                    fin.extend_from_slice(&self.buffer[..sz]);
-                }
-                HandshakeResult::OkTransport(fin)
-            }
-        }
+        let new_len = server
+            .inner
+            .write_message(&[], server.buffer.as_mut_unchecked())?;
+        server.buffer.set_len_unchecked(new_len as u16);
+
+        Ok(server)
     }
 
-    pub fn send_bytes(&mut self, bytes: &mut [u8]) -> HandshakeResult {
-        let progress = self.progress;
+    pub fn complete_handshake(
+        mut self,
+        client_response: &[u8],
+    ) -> Result<NoiseTransport, snow::Error> {
+        let _new_len = self
+            .inner
+            .read_message(&client_response, self.buffer.as_mut_unchecked())?;
 
-        let mut inner = |next, bytes| {
-            let mut v = Vec::new();
-            let Some(hs) = self.handshake_state.as_mut().map(AsMut::as_mut) else {
-                return HandshakeResult::Err(vec![1]);
-            };
-            let Ok(sz) = hs.write_message(bytes, &mut self.buffer) else {
-                return HandshakeResult::Err(vec![1]);
-            };
+        // "Empty" buffer to reuse it for Transport mode
+        self.buffer.set_len_unchecked(0);
 
-            v.reserve_exact(sz + 1);
-            v.extend(self.buffer[..sz].iter());
+        Ok(NoiseTransport {
+            buffer: self.buffer,
+            inner: self.inner.into_transport_mode()?,
+        })
+    }
+}
 
-            self.progress = next;
+impl NoiseTransport {
+    pub fn write(&mut self, bytes: &[u8]) -> Result<&[u8], snow::Error> {
+        let new_len = self
+            .inner
+            .write_message(bytes, self.buffer.as_mut_unchecked())? as u16;
+        self.buffer.set_len_unchecked(new_len);
 
-            HandshakeResult::OkHandshake(v)
-        };
+        Ok(self.buffer.read())
+    }
 
-        match progress {
-            HandshakeProgress::StartClient => inner(HandshakeProgress::ClientRecvES, &[]),
-            HandshakeProgress::ServerSendES => inner(HandshakeProgress::ServerRecvS, &[]),
-            HandshakeProgress::ClientSendS => inner(HandshakeProgress::Transport, &[]),
-            // Non-send
-            HandshakeProgress::StartServer
-            | HandshakeProgress::ClientRecvES
-            | HandshakeProgress::ServerRecvS => HandshakeResult::Err(vec![1]),
-            HandshakeProgress::Transport => {
-                const MAX_PER_DECRYPT_SIZE: usize = (u16::MAX - 16) as usize;
-                match bytes[0] {
-                    0 => {}
-                    1 => return HandshakeResult::Closed,
-                    _ => return HandshakeResult::Err(vec![1]),
-                }
-                let mut fin = Vec::new();
-                let Some(ts) = self.transport_state.as_mut() else {
-                    return HandshakeResult::Err(vec![1]);
-                };
+    pub fn read(&mut self, bytes: &[u8]) -> Result<&[u8], snow::Error> {
+        let new_len = self
+            .inner
+            .read_message(bytes, self.buffer.as_mut_unchecked())? as u16;
+        self.buffer.set_len_unchecked(new_len);
 
-                for chunk in bytes[1..].chunks(MAX_PER_DECRYPT_SIZE) {
-                    let Ok(sz) = ts.read_message(chunk, &mut self.buffer) else {
-                        return HandshakeResult::Err(vec![1]);
-                    };
-                    fin.extend_from_slice(&self.buffer[..sz]);
-                }
-                HandshakeResult::OkTransport(fin)
-            }
-        }
+        Ok(self.buffer.read())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn basic_handshake() {
+        let client = ClientHandshake::prepare_handshake().expect("client handshake works");
+
+        let server = ServerHandshake::respond(client.buffer.as_ref())
+            .expect("server handshake response works");
+
+        let (mut client_transport, client_response) = client
+            .complete_handshake(server.buffer.as_ref())
+            .expect("client completes handshake successfully");
+
+        let mut server_transport = server
+            .complete_handshake(client_response.as_ref())
+            .expect("server completes handshake");
+
+        assert!(client_transport.inner.is_initiator());
+
+        assert!(!server_transport.inner.is_initiator());
+
+        assert_eq!(
+            client_transport.inner.sending_nonce(),
+            server_transport.inner.receiving_nonce()
+        );
+
+        assert_eq!(
+            server_transport.inner.sending_nonce(),
+            client_transport.inner.receiving_nonce()
+        );
+
+        let wawa = b"wawa";
+        let client_wawa = client_transport
+            .write(wawa)
+            .expect("client encryption works");
+        let server_wawa = server_transport
+            .read(client_wawa)
+            .expect("server decryption works");
+
+        assert_ne!(wawa, client_wawa);
+        assert_eq!(wawa, server_wawa);
+
+        let wewe = b"wewe";
+
+        let server_wewe = server_transport
+            .write(wewe)
+            .expect("server encryption works");
+        let client_wewe = client_transport
+            .read(server_wewe)
+            .expect("client decryption works");
+
+        assert_ne!(wewe, server_wewe);
+        assert_eq!(wewe, client_wewe);
     }
 }
