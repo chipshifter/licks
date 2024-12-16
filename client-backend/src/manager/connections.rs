@@ -1,5 +1,6 @@
 use anyhow::anyhow;
 use futures_util::Future;
+use jenga::Service;
 use lib::api::connection::{
     AuthRequest, ChatServiceMessage, ClientRequestId, ListenerId, Message, MessageWire,
     UnauthRequest, MAX_CONNECTION_TIMEOUT_SECS, MIN_REQUEST_TIMEOUT_SECS,
@@ -215,7 +216,7 @@ impl ConnectionManager {
         _timeout_secs: Option<Duration>,
         // If Some, then the connection will start listening to the request
         listener: Option<Sender<ListenerMessage>>,
-    ) -> std::prelude::v1::Result<Message, RequestError> {
+    ) -> Result<Message> {
         let request_id = wire.0;
 
         let resp = connection.request(wire).await?;

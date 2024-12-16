@@ -1,17 +1,19 @@
 //! A generic connection handler using a stream.
 use std::{
+    ops::Deref,
     sync::{Arc, Mutex, PoisonError},
     time::Duration,
 };
 
 use futures_util::{Sink, SinkExt, Stream, StreamExt};
+use jenga::{timeout::TimeoutError, Middleware};
 use lib::api::connection::{
     ChatServiceMessage, ClientRequestId, Message, MessageWire, UnauthRequest,
-    MAX_CONNECTION_TIMEOUT_SECS,
+    MIN_REQUEST_TIMEOUT_SECS,
 };
 use tokio::{
     sync::{mpsc, oneshot},
-    time::{sleep, timeout},
+    time::sleep,
 };
 
 use tokio_util::sync::CancellationToken;
@@ -22,7 +24,7 @@ type RequestHashmap = Arc<scc::HashMap<ClientRequestId, oneshot::Sender<Message>
 type ListenerHashmap = Arc<scc::HashMap<ClientRequestId, mpsc::Sender<ListenerMessage>>>;
 
 #[derive(Debug)]
-pub struct Connection {
+pub struct RawConnection {
     pub request_sender: mpsc::Sender<Vec<u8>>,
     pub unattended: Mutex<mpsc::Receiver<Message>>,
     // We keep track of mpsc channels per-connection that are "listening" to incoming
@@ -33,7 +35,7 @@ pub struct Connection {
     pub cancellation_token: CancellationToken,
 }
 
-impl Connection {
+impl RawConnection {
     pub fn start<S: Stream<Item = Vec<u8>> + Sink<Vec<u8>> + Send + 'static + Unpin>(
         stream: S,
     ) -> Self {
@@ -128,36 +130,6 @@ impl Connection {
         }
     }
 
-    /// Tries to send a message to the mpsc channel.
-    /// Returns Err if the connection/stream went down
-    pub async fn request(&self, wire: MessageWire) -> Result<Message, RequestError> {
-        let (tx, rx) = oneshot::channel::<Message>();
-        let request_id = wire.0;
-        let _ = self.requests.insert_async(request_id, tx).await;
-
-        self.request_sender
-            .send(wire.to_bytes())
-            .await
-            .map_err(|_| {
-                log::info!(
-                    "Connection: Tried sending request {request_id:?} but connection was down"
-                );
-
-                RequestError::SendConnectionClosed
-            })?;
-
-        // TODO: Remove timeout here, use jenga timeout
-        let Ok(res) = timeout(MAX_CONNECTION_TIMEOUT_SECS, rx).await else {
-            return Err(RequestError::Timeout);
-        };
-
-        let Ok(resp) = res else {
-            return Err(RequestError::ReceiveConnectionClosed);
-        };
-
-        Ok(resp)
-    }
-
     /// Tell the connection that a given [`RequestId`] is used for listening to incoming messages.
     /// This sets the [`RequestId`] in a special state where instead of being used once, it can expect
     /// more than one message at any time.
@@ -196,5 +168,72 @@ impl Connection {
         }
 
         vec
+    }
+}
+
+impl jenga::Service<MessageWire> for RawConnection {
+    type Response = Message;
+    type Error = RequestError;
+
+    /// Tries to send a message to the mpsc channel.
+    /// Returns Err if the connection/stream went down
+    async fn request(&self, wire: MessageWire) -> Result<Self::Response, Self::Error> {
+        let (tx, rx) = oneshot::channel::<Message>();
+        let request_id = wire.0;
+        let _ = self.requests.insert_async(request_id, tx).await;
+
+        self.request_sender
+            .send(wire.to_bytes())
+            .await
+            .map_err(|_| {
+                log::info!(
+                    "Connection: Tried sending request {request_id:?} but connection was down"
+                );
+
+                RequestError::SendConnectionClosed
+            })?;
+
+        let Ok(resp) = rx.await else {
+            return Err(RequestError::ReceiveConnectionClosed);
+        };
+
+        Ok(resp)
+    }
+}
+
+const CONNECTION_RETRY_COUNT: usize = 1;
+
+/// A struct encapsulating [`RawConnection`] (and derefs as one) used to
+/// encapsulate jenga's `request` function with middlewares like timeout and retry.
+pub struct Connection {
+    inner: jenga::retry::Retry<
+        CONNECTION_RETRY_COUNT,
+        MessageWire,
+        jenga::timeout::Timeout<MessageWire, RawConnection>,
+    >,
+}
+
+impl jenga::Service<MessageWire> for Connection {
+    type Response = Message;
+    type Error = TimeoutError<RequestError>;
+
+    async fn request(&self, msg: MessageWire) -> Result<Self::Response, Self::Error> {
+        self.inner.request(msg).await
+    }
+}
+
+impl From<RawConnection> for Connection {
+    fn from(value: RawConnection) -> Self {
+        let timeout = jenga::timeout::Timeout::new(value, MIN_REQUEST_TIMEOUT_SECS);
+        let retry = jenga::retry::Retry::instant(timeout);
+        Self { inner: retry }
+    }
+}
+
+impl Deref for Connection {
+    type Target = RawConnection;
+
+    fn deref(&self) -> &Self::Target {
+        self.inner.inner_service().inner_service()
     }
 }

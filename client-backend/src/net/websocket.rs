@@ -2,6 +2,7 @@ use futures_util::{SinkExt, StreamExt};
 use tokio_tungstenite::{connect_async, tungstenite::Message as TungsteniteMessage};
 
 use super::connection::Connection;
+use super::connection::RawConnection;
 use super::ConnectionStarter;
 use super::ServerConnectionError;
 
@@ -30,6 +31,6 @@ impl ConnectionStarter for WebsocketConnection {
             }
         });
 
-        Ok(Connection::start(Box::pin(stream)))
+        Ok(RawConnection::start(Box::pin(stream)).into())
     }
 }
