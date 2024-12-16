@@ -147,8 +147,8 @@ fn App() -> Element {
             "var(--primary)",
         ),
         Tab::Contacts => (
-            rsx!( "Contacts tab" ),
-            rsx!( "Contacts panel" ),
+            rsx!("Contacts tab"),
+            rsx!("Contacts panel"),
             "Contacts",
             "var(--secondary)",
         ),

@@ -166,7 +166,7 @@ pub fn ChatPanel(selected_group: Signal<GroupUi>) -> Element {
                     onclick: move |_| on_press_send(),
                     ImageIcon { size: 30, icon_name: "send_arrow.png", button: true }
                 }
-            
+
             }
         }
     }
