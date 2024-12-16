@@ -12,9 +12,7 @@ use tokio::{sync::mpsc, time::sleep};
 
 use tokio_util::sync::CancellationToken;
 
-use crate::manager::listener::ListenerMessage;
-
-use super::PendingRequestSenders;
+use crate::manager::{connections::PENDING_REQUESTS_HASHMAP, listener::ListenerMessage};
 
 type ListenerHashmap = Arc<scc::HashMap<ClientRequestId, mpsc::Sender<ListenerMessage>>>;
 
@@ -32,7 +30,6 @@ pub struct Connection {
 impl Connection {
     pub fn start<S: Stream<Item = Vec<u8>> + Sink<Vec<u8>> + Send + 'static + Unpin>(
         stream: S,
-        pending_senders: PendingRequestSenders,
     ) -> Self {
         let (mut sender, mut receiver) = stream.split();
         let (tx, mut rx) = mpsc::channel(16);
@@ -74,7 +71,7 @@ impl Connection {
                                     },
                                     Message::Ok => {
                                         // All good, send Ok to complete request
-                                        if let Some((_, tx)) = pending_senders.remove_async(&request_id).await {
+                                        if let Some((_, tx)) = PENDING_REQUESTS_HASHMAP.remove_async(&request_id).await {
                                             log::debug!("Received response for request {request_id:?}. Sending back to manager");
                                             // if request got dropped, ignore result
                                             let _ = tx.send(Message::Ok);
@@ -85,7 +82,7 @@ impl Connection {
                                         listening_clone.remove_async(&request_id).await;
                                     }
                                 }
-                            } else if let Some((_, tx)) = pending_senders.remove_async(&request_id).await {
+                            } else if let Some((_, tx)) = PENDING_REQUESTS_HASHMAP.remove_async(&request_id).await {
                                 log::debug!("Received response for request {request_id:?}. Sending back to manager");
                                 // if request got dropped, ignore result
                                 let _ = tx.send(msg.1);

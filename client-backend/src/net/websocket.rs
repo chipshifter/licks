@@ -3,7 +3,6 @@ use tokio_tungstenite::{connect_async, tungstenite::Message as TungsteniteMessag
 
 use super::connection::Connection;
 use super::ConnectionStarter;
-use super::PendingRequestSenders;
 use super::ServerConnectionError;
 
 #[derive(Debug)]
@@ -13,10 +12,7 @@ pub struct WebsocketConnection;
 
 #[async_trait::async_trait]
 impl ConnectionStarter for WebsocketConnection {
-    async fn start_connection(
-        url: String,
-        pending_senders: PendingRequestSenders,
-    ) -> Result<Connection, ServerConnectionError> {
+    async fn start_connection(url: String) -> Result<Connection, ServerConnectionError> {
         let (ws_stream, _) = connect_async(url).await.map_err(|e| {
             log::error!("Couldn't open WebSocket connection: {e:?}");
             ServerConnectionError::OpenFailed
@@ -34,6 +30,6 @@ impl ConnectionStarter for WebsocketConnection {
             }
         });
 
-        Ok(Connection::start(Box::pin(stream), pending_senders))
+        Ok(Connection::start(Box::pin(stream)))
     }
 }

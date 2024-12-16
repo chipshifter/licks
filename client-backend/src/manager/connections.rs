@@ -7,7 +7,7 @@ use lib::api::connection::{
 use lib::api::server::Server;
 use std::fmt::Debug;
 use std::hash::Hash;
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 use std::time::Duration;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::oneshot;
@@ -25,8 +25,14 @@ use crate::tests::connections::FakeAuthenticatedConnection;
 use crate::tests::connections::FakeConnection;
 use lib::crypto::blinded_address::BlindedAddressPublic;
 
+/// A global HashMap keeping track of pending requests, for all connections.
+///
+/// Used by connections internally when receiving a message, to send the
+/// response back to the relevant sender who is waiting for it.
+pub(crate) static PENDING_REQUESTS_HASHMAP: LazyLock<PendingRequestSenders> =
+    LazyLock::new(|| scc::HashMap::new());
+
 pub struct ConnectionManager {
-    pending_request_senders: PendingRequestSenders,
     unauthenticated_connections: scc::HashMap<Server, Arc<Connection>>,
     authenticated_connections: scc::HashMap<Arc<Profile>, Arc<Connection>>,
     connection_mode: ConnectionMode,
@@ -68,7 +74,6 @@ impl ConnectionManager {
         max_timeout_secs: Option<Duration>,
     ) -> ConnectionManager {
         ConnectionManager {
-            pending_request_senders: Arc::new(scc::HashMap::new()),
             unauthenticated_connections: scc::HashMap::new(),
             authenticated_connections: scc::HashMap::new(),
             connection_mode,
@@ -193,29 +198,19 @@ impl ConnectionManager {
     async fn create_connection(&self, url: String) -> Result<Arc<Connection>> {
         match self.connection_mode {
             ConnectionMode::WebSocket => {
-                let ws_conn = WebsocketConnection::start_connection(
-                    url,
-                    self.pending_request_senders.clone(),
-                )
-                .await?;
+                let ws_conn = WebsocketConnection::start_connection(url).await?;
 
                 Ok(Arc::new(ws_conn))
             }
             #[cfg(test)]
             ConnectionMode::FakeConnection => {
-                let fake_conn =
-                    FakeConnection::start_connection(url, self.pending_request_senders.clone())
-                        .await?;
+                let fake_conn = FakeConnection::start_connection(url).await?;
 
                 Ok(Arc::new(fake_conn))
             }
             #[cfg(test)]
             ConnectionMode::FakeAuthenticatedConnection => {
-                let fake_conn = FakeAuthenticatedConnection::start_connection(
-                    url,
-                    self.pending_request_senders.clone(),
-                )
-                .await?;
+                let fake_conn = FakeAuthenticatedConnection::start_connection(url).await?;
 
                 Ok(Arc::new(fake_conn))
             }
@@ -232,10 +227,7 @@ impl ConnectionManager {
     ) -> std::prelude::v1::Result<Message, RequestError> {
         let (tx, rx) = oneshot::channel::<Message>();
         let request_id = wire.0;
-        let _ = self
-            .pending_request_senders
-            .insert_async(request_id, tx)
-            .await;
+        let _ = PENDING_REQUESTS_HASHMAP.insert_async(request_id, tx).await;
 
         connection
             .send(wire)
@@ -247,13 +239,13 @@ impl ConnectionManager {
         }
 
         let Ok(res) = timeout(timeout_secs.unwrap_or(MAX_CONNECTION_TIMEOUT_SECS), rx).await else {
-            let _ = self.pending_request_senders.remove_async(&request_id).await;
+            let _ = PENDING_REQUESTS_HASHMAP.remove_async(&request_id).await;
 
             return Err(RequestError::Timeout);
         };
 
         let Ok(resp) = res else {
-            let _ = self.pending_request_senders.remove_async(&request_id).await;
+            let _ = PENDING_REQUESTS_HASHMAP.remove_async(&request_id).await;
 
             return Err(RequestError::ReceiveConnectionClosed);
         };

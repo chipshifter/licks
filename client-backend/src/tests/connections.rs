@@ -6,9 +6,7 @@ use lib::{
     crypto::challenge::AuthChallenge,
 };
 
-use crate::net::{
-    connection::Connection, ConnectionStarter, PendingRequestSenders, ServerConnectionError,
-};
+use crate::net::{connection::Connection, ConnectionStarter, ServerConnectionError};
 
 /// A fake connection (which is just a stream) used to test the connection manager.
 /// It takes in bytes in input and output. The connection deserializes the input and
@@ -80,12 +78,9 @@ impl Stream for FakeConnection {
 
 #[async_trait::async_trait]
 impl ConnectionStarter for FakeConnection {
-    async fn start_connection(
-        _url: String,
-        pending_senders: PendingRequestSenders,
-    ) -> Result<Connection, ServerConnectionError> {
+    async fn start_connection(_url: String) -> Result<Connection, ServerConnectionError> {
         let stream = Self(scc::Bag::new());
-        Ok(Connection::start(Box::pin(stream), pending_senders))
+        Ok(Connection::start(Box::pin(stream)))
     }
 }
 
@@ -177,12 +172,9 @@ impl Stream for FakeAuthenticatedConnection {
 
 #[async_trait::async_trait]
 impl ConnectionStarter for FakeAuthenticatedConnection {
-    async fn start_connection(
-        _url: String,
-        pending_senders: PendingRequestSenders,
-    ) -> Result<Connection, ServerConnectionError> {
+    async fn start_connection(_url: String) -> Result<Connection, ServerConnectionError> {
         let stream = Self(scc::Bag::new(), ChallengeState::NotStarted, None);
-        Ok(Connection::start(Box::pin(stream), pending_senders))
+        Ok(Connection::start(Box::pin(stream)))
     }
 }
 

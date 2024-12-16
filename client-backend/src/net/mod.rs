@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use async_trait::async_trait;
 use connection::Connection;
 use lib::api::connection::{ClientRequestId, Message};
@@ -28,14 +26,11 @@ pub enum ServerConnectionError {
 /// individual [`Connection`] instances when they receive something to find which
 /// oneshot channel to send back the request response to.
 pub type PendingRequestSenders =
-    Arc<scc::HashMap<ClientRequestId, tokio::sync::oneshot::Sender<Message>>>;
+    scc::HashMap<ClientRequestId, tokio::sync::oneshot::Sender<Message>>;
 
 /// This trait starts a generic [`Connection`] socket. This is the layer where
 /// diff connection technologies like WebSocket or WebTransport can be implemented.
 #[async_trait]
 pub trait ConnectionStarter {
-    async fn start_connection(
-        url: String,
-        pending_senders: PendingRequestSenders,
-    ) -> Result<Connection, ServerConnectionError>;
+    async fn start_connection(url: String) -> Result<Connection, ServerConnectionError>;
 }
