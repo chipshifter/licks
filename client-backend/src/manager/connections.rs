@@ -7,30 +7,21 @@ use lib::api::connection::{
 use lib::api::server::Server;
 use std::fmt::Debug;
 use std::hash::Hash;
-use std::sync::{Arc, LazyLock};
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc::Sender;
-use tokio::sync::oneshot;
-use tokio::time::timeout;
 
 use super::account::Profile;
 use super::listener::ListenerMessage;
 use crate::manager::error::Result;
 use crate::net::connection::Connection;
 use crate::net::websocket::WebsocketConnection;
-use crate::net::{ConnectionStarter, PendingRequestSenders};
+use crate::net::ConnectionStarter;
 #[cfg(test)]
 use crate::tests::connections::FakeAuthenticatedConnection;
 #[cfg(test)]
 use crate::tests::connections::FakeConnection;
 use lib::crypto::blinded_address::BlindedAddressPublic;
-
-/// A global HashMap keeping track of pending requests, for all connections.
-///
-/// Used by connections internally when receiving a message, to send the
-/// response back to the relevant sender who is waiting for it.
-pub(crate) static PENDING_REQUESTS_HASHMAP: LazyLock<PendingRequestSenders> =
-    LazyLock::new(|| scc::HashMap::new());
 
 pub struct ConnectionManager {
     unauthenticated_connections: scc::HashMap<Server, Arc<Connection>>,
@@ -221,34 +212,17 @@ impl ConnectionManager {
         &self,
         connection: &Connection,
         wire: MessageWire,
-        timeout_secs: Option<Duration>,
+        _timeout_secs: Option<Duration>,
         // If Some, then the connection will start listening to the request
         listener: Option<Sender<ListenerMessage>>,
     ) -> std::prelude::v1::Result<Message, RequestError> {
-        let (tx, rx) = oneshot::channel::<Message>();
         let request_id = wire.0;
-        let _ = PENDING_REQUESTS_HASHMAP.insert_async(request_id, tx).await;
 
-        connection
-            .send(wire)
-            .await
-            .map_err(|()| RequestError::SendConnectionClosed)?;
+        let resp = connection.request(wire).await?;
 
         if let Some(tx) = listener {
             connection.start_listen(request_id, tx).await;
         }
-
-        let Ok(res) = timeout(timeout_secs.unwrap_or(MAX_CONNECTION_TIMEOUT_SECS), rx).await else {
-            let _ = PENDING_REQUESTS_HASHMAP.remove_async(&request_id).await;
-
-            return Err(RequestError::Timeout);
-        };
-
-        let Ok(resp) = res else {
-            let _ = PENDING_REQUESTS_HASHMAP.remove_async(&request_id).await;
-
-            return Err(RequestError::ReceiveConnectionClosed);
-        };
 
         Ok(resp)
     }

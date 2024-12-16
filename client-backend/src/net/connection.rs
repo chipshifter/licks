@@ -7,13 +7,18 @@ use std::{
 use futures_util::{Sink, SinkExt, Stream, StreamExt};
 use lib::api::connection::{
     ChatServiceMessage, ClientRequestId, Message, MessageWire, UnauthRequest,
+    MAX_CONNECTION_TIMEOUT_SECS,
 };
-use tokio::{sync::mpsc, time::sleep};
+use tokio::{
+    sync::{mpsc, oneshot},
+    time::{sleep, timeout},
+};
 
 use tokio_util::sync::CancellationToken;
 
-use crate::manager::{connections::PENDING_REQUESTS_HASHMAP, listener::ListenerMessage};
+use crate::manager::{connections::RequestError, listener::ListenerMessage};
 
+type RequestHashmap = Arc<scc::HashMap<ClientRequestId, oneshot::Sender<Message>>>;
 type ListenerHashmap = Arc<scc::HashMap<ClientRequestId, mpsc::Sender<ListenerMessage>>>;
 
 #[derive(Debug)]
@@ -24,6 +29,7 @@ pub struct Connection {
     // messages. When the connection receives such a message, it gets send to the mpsc
     // sender.
     pub listening: ListenerHashmap,
+    pub requests: RequestHashmap,
     pub cancellation_token: CancellationToken,
 }
 
@@ -38,6 +44,8 @@ impl Connection {
 
         let cancellation_token_clone = cancellation_token.clone();
 
+        let requests: RequestHashmap = scc::HashMap::new().into();
+        let requests_clone: RequestHashmap = requests.clone();
         let listening: ListenerHashmap = scc::HashMap::new().into();
         let listening_clone = listening.clone();
         tokio::task::spawn(async move {
@@ -71,7 +79,7 @@ impl Connection {
                                     },
                                     Message::Ok => {
                                         // All good, send Ok to complete request
-                                        if let Some((_, tx)) = PENDING_REQUESTS_HASHMAP.remove_async(&request_id).await {
+                                        if let Some((_, tx)) = requests_clone.remove_async(&request_id).await {
                                             log::debug!("Received response for request {request_id:?}. Sending back to manager");
                                             // if request got dropped, ignore result
                                             let _ = tx.send(Message::Ok);
@@ -82,7 +90,7 @@ impl Connection {
                                         listening_clone.remove_async(&request_id).await;
                                     }
                                 }
-                            } else if let Some((_, tx)) = PENDING_REQUESTS_HASHMAP.remove_async(&request_id).await {
+                            } else if let Some((_, tx)) = requests_clone.remove_async(&request_id).await {
                                 log::debug!("Received response for request {request_id:?}. Sending back to manager");
                                 // if request got dropped, ignore result
                                 let _ = tx.send(msg.1);
@@ -115,14 +123,18 @@ impl Connection {
             request_sender: tx,
             unattended: Mutex::new(unattended),
             listening,
+            requests,
             cancellation_token,
         }
     }
 
     /// Tries to send a message to the mpsc channel.
     /// Returns Err if the connection/stream went down
-    pub async fn send(&self, wire: MessageWire) -> Result<(), ()> {
+    pub async fn request(&self, wire: MessageWire) -> Result<Message, RequestError> {
+        let (tx, rx) = oneshot::channel::<Message>();
         let request_id = wire.0;
+        let _ = self.requests.insert_async(request_id, tx).await;
+
         self.request_sender
             .send(wire.to_bytes())
             .await
@@ -130,7 +142,20 @@ impl Connection {
                 log::info!(
                     "Connection: Tried sending request {request_id:?} but connection was down"
                 );
-            })
+
+                RequestError::SendConnectionClosed
+            })?;
+
+        // TODO: Remove timeout here, use jenga timeout
+        let Ok(res) = timeout(MAX_CONNECTION_TIMEOUT_SECS, rx).await else {
+            return Err(RequestError::Timeout);
+        };
+
+        let Ok(resp) = res else {
+            return Err(RequestError::ReceiveConnectionClosed);
+        };
+
+        Ok(resp)
     }
 
     /// Tell the connection that a given [`RequestId`] is used for listening to incoming messages.
