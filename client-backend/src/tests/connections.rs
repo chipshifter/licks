@@ -317,7 +317,7 @@ mod tests {
     /// Rust lazily evalues .await functions, so the request_unauthenticated actually only occurs
     /// after removing the connection, meaning it should automatically make a new connection.
     pub async fn integration_fault_connection_drop_while_receive() {
-        let conns = ConnectionManager::new(ConnectionMode::FakeConnection, None, None);
+        let conns = ConnectionManager::new(ConnectionMode::WebSocket, None, None);
         let server = Server::localhost();
 
         let _ = conns

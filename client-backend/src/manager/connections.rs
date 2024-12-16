@@ -16,6 +16,7 @@ use super::account::Profile;
 use super::listener::ListenerMessage;
 use crate::manager::error::Result;
 use crate::net::connection::Connection;
+use crate::net::manager::WebsocketManager;
 use crate::net::websocket::WebsocketConnector;
 use crate::net::Connector;
 #[cfg(test)]
@@ -25,13 +26,14 @@ use lib::crypto::blinded_address::BlindedAddressPublic;
 pub struct ConnectionManager {
     unauthenticated_connections: scc::HashMap<Server, Arc<Connection>>,
     authenticated_connections: scc::HashMap<Arc<Profile>, Arc<Connection>>,
+    ws_manager: Arc<WebsocketManager>,
     connection_mode: ConnectionMode,
     max_retry_attempts: u32,
     max_timeout_secs: Duration,
 }
 
 /// Tell the connection manager which type of connection we want to use.
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum ConnectionMode {
     #[default]
     WebSocket,
@@ -66,6 +68,7 @@ impl ConnectionManager {
         ConnectionManager {
             unauthenticated_connections: scc::HashMap::new(),
             authenticated_connections: scc::HashMap::new(),
+            ws_manager: Arc::new(WebsocketManager::new()),
             connection_mode,
             max_retry_attempts: retry_attempts.unwrap_or(5),
             max_timeout_secs: max_timeout_secs.unwrap_or(MAX_CONNECTION_TIMEOUT_SECS),
@@ -293,15 +296,19 @@ impl ConnectionManager {
         server: &Server,
         request: UnauthRequest,
     ) -> Result<Message> {
-        Self::request_with_retry(
-            self,
-            server,
-            Message::Unauth(request),
-            Self::get_unauthenticated_connection,
-            Self::remove_unauthenticated_connection,
-            None,
-        )
-        .await
+        if self.connection_mode == ConnectionMode::WebSocket {
+            Ok(self.ws_manager.request_unauth(server, request).await?)
+        } else {
+            Self::request_with_retry(
+                self,
+                server,
+                Message::Unauth(request),
+                Self::get_unauthenticated_connection,
+                Self::remove_unauthenticated_connection,
+                None,
+            )
+            .await
+        }
     }
 
     #[inline]

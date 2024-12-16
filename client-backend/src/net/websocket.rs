@@ -6,7 +6,7 @@ use super::connection::RawConnection;
 use super::Connector;
 use super::ServerConnectionError;
 
-#[derive(Debug)]
+#[derive(Debug, Default, Clone, Copy)]
 /// [`Connection`] holds all the relevant information,
 /// so we keep this struct empty
 pub struct WebsocketConnector;

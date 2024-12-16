@@ -1,6 +1,7 @@
 use connection::Connection;
 
 pub mod connection;
+pub mod manager;
 pub mod websocket;
 
 #[derive(thiserror::Error, Debug, PartialEq, Eq)]
