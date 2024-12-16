@@ -8,7 +8,7 @@ use lib::{
 
 use crate::net::{
     connection::{Connection, RawConnection},
-    ConnectionStarter, ServerConnectionError,
+    Connector, ServerConnectionError,
 };
 
 /// A fake connection (which is just a stream) used to test the connection manager.
@@ -79,10 +79,14 @@ impl Stream for FakeConnection {
     }
 }
 
-#[async_trait::async_trait]
-impl ConnectionStarter for FakeConnection {
-    async fn start_connection(_url: String) -> Result<Connection, ServerConnectionError> {
-        let stream = Self(scc::Bag::new());
+pub struct FakeConnector;
+impl Connector for FakeConnector {}
+impl jenga::Service<String> for FakeConnector {
+    type Response = Connection;
+    type Error = ServerConnectionError;
+
+    async fn request(&self, _msg: String) -> Result<Self::Response, Self::Error> {
+        let stream = FakeConnection(scc::Bag::new());
         Ok(RawConnection::start(Box::pin(stream)).into())
     }
 }
@@ -173,10 +177,14 @@ impl Stream for FakeAuthenticatedConnection {
     }
 }
 
-#[async_trait::async_trait]
-impl ConnectionStarter for FakeAuthenticatedConnection {
-    async fn start_connection(_url: String) -> Result<Connection, ServerConnectionError> {
-        let stream = Self(scc::Bag::new(), ChallengeState::NotStarted, None);
+pub struct FakeAuthenticatedConnector;
+impl Connector for FakeAuthenticatedConnector {}
+impl jenga::Service<String> for FakeAuthenticatedConnector {
+    type Response = Connection;
+    type Error = ServerConnectionError;
+
+    async fn request(&self, _msg: String) -> Result<Self::Response, Self::Error> {
+        let stream = FakeAuthenticatedConnection(scc::Bag::new(), ChallengeState::NotStarted, None);
         Ok(RawConnection::start(Box::pin(stream)).into())
     }
 }

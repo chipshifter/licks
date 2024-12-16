@@ -1,4 +1,3 @@
-use async_trait::async_trait;
 use connection::Connection;
 
 pub mod connection;
@@ -22,7 +21,11 @@ pub enum ServerConnectionError {
 
 /// This trait starts a generic [`Connection`] socket. This is the layer where
 /// diff connection technologies like WebSocket or WebTransport can be implemented.
-#[async_trait]
-pub trait ConnectionStarter {
-    async fn start_connection(url: String) -> Result<Connection, ServerConnectionError>;
+pub trait Connector:
+    jenga::Service<String, Response = Connection, Error = ServerConnectionError>
+{
+    #[allow(async_fn_in_trait)]
+    async fn start_connection(&self, url: String) -> Result<Connection, ServerConnectionError> {
+        self.request(url).await
+    }
 }

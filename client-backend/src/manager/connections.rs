@@ -16,12 +16,10 @@ use super::account::Profile;
 use super::listener::ListenerMessage;
 use crate::manager::error::Result;
 use crate::net::connection::Connection;
-use crate::net::websocket::WebsocketConnection;
-use crate::net::ConnectionStarter;
+use crate::net::websocket::WebsocketConnector;
+use crate::net::Connector;
 #[cfg(test)]
-use crate::tests::connections::FakeAuthenticatedConnection;
-#[cfg(test)]
-use crate::tests::connections::FakeConnection;
+use crate::tests::connections::{FakeAuthenticatedConnector, FakeConnector};
 use lib::crypto::blinded_address::BlindedAddressPublic;
 
 pub struct ConnectionManager {
@@ -190,19 +188,22 @@ impl ConnectionManager {
     async fn create_connection(&self, url: String) -> Result<Arc<Connection>> {
         match self.connection_mode {
             ConnectionMode::WebSocket => {
-                let ws_conn = WebsocketConnection::start_connection(url).await?;
+                let ws = WebsocketConnector;
+                let ws_conn = ws.start_connection(url).await?;
 
                 Ok(Arc::new(ws_conn))
             }
             #[cfg(test)]
             ConnectionMode::FakeConnection => {
-                let fake_conn = FakeConnection::start_connection(url).await?;
+                let fake = FakeConnector;
+                let fake_conn = fake.start_connection(url).await?;
 
                 Ok(Arc::new(fake_conn))
             }
             #[cfg(test)]
             ConnectionMode::FakeAuthenticatedConnection => {
-                let fake_conn = FakeAuthenticatedConnection::start_connection(url).await?;
+                let fake = FakeAuthenticatedConnector;
+                let fake_conn = fake.start_connection(url).await?;
 
                 Ok(Arc::new(fake_conn))
             }

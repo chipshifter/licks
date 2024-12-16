@@ -3,17 +3,21 @@ use tokio_tungstenite::{connect_async, tungstenite::Message as TungsteniteMessag
 
 use super::connection::Connection;
 use super::connection::RawConnection;
-use super::ConnectionStarter;
+use super::Connector;
 use super::ServerConnectionError;
 
 #[derive(Debug)]
 /// [`Connection`] holds all the relevant information,
 /// so we keep this struct empty
-pub struct WebsocketConnection;
+pub struct WebsocketConnector;
 
-#[async_trait::async_trait]
-impl ConnectionStarter for WebsocketConnection {
-    async fn start_connection(url: String) -> Result<Connection, ServerConnectionError> {
+impl Connector for WebsocketConnector {}
+impl jenga::Service<String> for WebsocketConnector {
+    type Response = Connection;
+    type Error = ServerConnectionError;
+
+    async fn request(&self, msg: String) -> Result<Self::Response, Self::Error> {
+        let url = msg;
         let (ws_stream, _) = connect_async(url).await.map_err(|e| {
             log::error!("Couldn't open WebSocket connection: {e:?}");
             ServerConnectionError::OpenFailed
