@@ -1,9 +1,5 @@
 //! A generic connection handler using a stream.
-use std::{
-    ops::Deref,
-    sync::{Arc, Mutex, PoisonError},
-    time::Duration,
-};
+use std::{ops::Deref, sync::Arc, time::Duration};
 
 use futures_util::{Sink, SinkExt, Stream, StreamExt};
 use jenga::{timeout::TimeoutError, Middleware};
@@ -29,7 +25,6 @@ type ListenerHashmap = Arc<scc::HashMap<ClientRequestId, mpsc::Sender<ListenerMe
 /// to what server it is connected.
 pub struct RawConnection {
     pub request_sender: mpsc::Sender<Vec<u8>>,
-    pub unattended: Mutex<mpsc::Receiver<Message>>,
     // We keep track of mpsc channels per-connection that are "listening" to incoming
     // messages. When the connection receives such a message, it gets send to the mpsc
     // sender.
@@ -44,7 +39,6 @@ impl RawConnection {
     ) -> Self {
         let (mut sender, mut receiver) = stream.split();
         let (tx, mut rx) = mpsc::channel(16);
-        let (unattended_sender, unattended) = mpsc::channel::<Message>(16);
         let cancellation_token = CancellationToken::new();
 
         let cancellation_token_clone = cancellation_token.clone();
@@ -72,8 +66,7 @@ impl RawConnection {
                             if request_id.is_nil() {
                                 // Not a heartbeat?
                                 if !msg.1.eq(&Message::Pong(vec![72, 66])) {
-                                    log::warn!("A message with no RequestId came around,but wasn't a heartbeat: {:?}", msg.1);
-                                    let _ = unattended_sender.send(msg.1).await;
+                                    log::warn!("A message with no RequestId came around, but wasn't a heartbeat: {:?}", msg.1);
                                 }
                             } else if let Some(tx) = listening_clone.get_async(&request_id).await {
                                 log::debug!("Listening {request_id:?}: got new message. Sending to manager");
@@ -126,7 +119,6 @@ impl RawConnection {
 
         Self {
             request_sender: tx,
-            unattended: Mutex::new(unattended),
             listening,
             requests,
             cancellation_token,
@@ -155,22 +147,14 @@ impl RawConnection {
         !(self.cancellation_token.is_cancelled() || self.request_sender.is_closed())
     }
 
-    pub fn close(&self) -> Vec<Message> {
+    pub fn close(&self) {
         self.cancellation_token.cancel();
-        Vec::new()
     }
+}
 
-    pub fn collect_unattended(&self) -> Vec<Message> {
-        let mut vec: Vec<Message> = Vec::new();
-        let mut lock = self
-            .unattended
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner);
-        if let Ok(message) = lock.try_recv() {
-            vec.push(message);
-        }
-
-        vec
+impl Drop for RawConnection {
+    fn drop(&mut self) {
+        self.close();
     }
 }
 
@@ -201,12 +185,6 @@ impl jenga::Service<MessageWire> for RawConnection {
         };
 
         Ok(resp)
-    }
-}
-
-impl Drop for RawConnection {
-    fn drop(&mut self) {
-        self.close();
     }
 }
 
