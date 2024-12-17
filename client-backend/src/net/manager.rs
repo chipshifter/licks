@@ -8,7 +8,7 @@ use lib::api::{
 
 use crate::manager::{account::Profile, connections::RequestError};
 
-use super::{connection::Connection, websocket::WebsocketConnector, ServerConnectionError};
+use super::{connection::Connection, websocket::WebsocketConnector, ConnectionError};
 
 /// Connection with jenga middlewares, notably Restart, which automatically restarts a connection
 /// if a message fails to send.
@@ -18,7 +18,7 @@ type UnauthConnectionJenga = jenga::restart::Restart<
     TimeoutError<RequestError>,
     Connection,
     String,
-    ServerConnectionError,
+    ConnectionError,
     WebsocketConnector,
 >;
 
@@ -28,7 +28,7 @@ type AuthConnectionJenga = jenga::restart::Restart<
     TimeoutError<RequestError>,
     Connection,
     Arc<Profile>,
-    ServerConnectionError,
+    ConnectionError,
     WebsocketConnector,
 >;
 

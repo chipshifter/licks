@@ -8,7 +8,7 @@ use lib::{
 
 use crate::net::{
     connection::{Connection, RawConnection},
-    Connector, ServerConnectionError,
+    ConnectionError, Connector,
 };
 
 /// A fake connection (which is just a stream) used to test the connection manager.
@@ -83,7 +83,7 @@ pub struct FakeConnector;
 impl Connector for FakeConnector {}
 impl jenga::Service<String> for FakeConnector {
     type Response = Connection;
-    type Error = ServerConnectionError;
+    type Error = ConnectionError;
 
     async fn request(&self, _msg: String) -> Result<Self::Response, Self::Error> {
         let stream = FakeConnection(scc::Bag::new());
@@ -181,7 +181,7 @@ pub struct FakeAuthenticatedConnector;
 impl Connector for FakeAuthenticatedConnector {}
 impl jenga::Service<String> for FakeAuthenticatedConnector {
     type Response = Connection;
-    type Error = ServerConnectionError;
+    type Error = ConnectionError;
 
     async fn request(&self, _msg: String) -> Result<Self::Response, Self::Error> {
         let stream = FakeAuthenticatedConnection(scc::Bag::new(), ChallengeState::NotStarted, None);

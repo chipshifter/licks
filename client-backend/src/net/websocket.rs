@@ -8,8 +8,8 @@ use crate::manager::account::Profile;
 
 use super::connection::Connection;
 use super::connection::RawConnection;
+use super::ConnectionError;
 use super::Connector;
-use super::ServerConnectionError;
 
 #[derive(Debug, Default, Clone, Copy)]
 /// [`Connection`] holds all the relevant information,
@@ -21,14 +21,13 @@ impl Connector for WebsocketConnector {}
 // Unauthenticated connections
 impl jenga::Service<String> for WebsocketConnector {
     type Response = Connection;
-    type Error = ServerConnectionError;
+    type Error = ConnectionError;
 
     async fn request(&self, msg: String) -> Result<Self::Response, Self::Error> {
         let url = msg;
-        let (ws_stream, _) = connect_async(url).await.map_err(|e| {
-            log::error!("Couldn't open WebSocket connection: {e:?}");
-            ServerConnectionError::OpenFailed
-        })?;
+        let (ws_stream, _) = connect_async(url)
+            .await
+            .map_err(|_| ConnectionError::CouldNotConnect)?;
 
         let stream = ws_stream.with(|bytes| async {
             Ok::<_, tokio_tungstenite::tungstenite::Error>(TungsteniteMessage::Binary(bytes))
@@ -49,7 +48,7 @@ impl jenga::Service<String> for WebsocketConnector {
 // authenticated connections: unauth connections + a challenge
 impl jenga::Service<Arc<Profile>> for WebsocketConnector {
     type Response = Connection;
-    type Error = ServerConnectionError;
+    type Error = ConnectionError;
 
     async fn request(&self, msg: Arc<Profile>) -> Result<Self::Response, Self::Error> {
         let unauth_conn = <WebsocketConnector as jenga::Service<String>>::request(
@@ -61,10 +60,10 @@ impl jenga::Service<Arc<Profile>> for WebsocketConnector {
         let challenge_1 = unauth_conn
             .request(Message::GetChallenge.into())
             .await
-            .expect("todo");
+            .map_err(|_| ConnectionError::AuthChallengeFailed)?;
 
         let Message::Challenge(server_challenge) = challenge_1 else {
-            todo!();
+            return Err(ConnectionError::AuthChallengeFailed);
         };
 
         let challenge_response = msg.get_auth_challenge_response(server_challenge);
@@ -72,11 +71,11 @@ impl jenga::Service<Arc<Profile>> for WebsocketConnector {
         let challenge_2 = unauth_conn
             .request(Message::ChallengeResponse(challenge_response).into())
             .await
-            .expect("todo");
+            .map_err(|_| ConnectionError::AuthChallengeFailed)?;
 
         match challenge_2 {
             Message::Ok => Ok(unauth_conn),
-            _ => todo!(),
+            _ => Err(ConnectionError::AuthChallengeFailed),
         }
     }
 }
