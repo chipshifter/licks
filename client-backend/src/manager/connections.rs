@@ -317,15 +317,19 @@ impl ConnectionManager {
         profile: Arc<Profile>,
         request: AuthRequest,
     ) -> Result<Message> {
-        Self::request_with_retry(
-            self,
-            &profile,
-            Message::Auth(request),
-            Self::get_authenticated_connection,
-            Self::remove_authenticated_connection,
-            None,
-        )
-        .await
+        if self.connection_mode == ConnectionMode::WebSocket {
+            Ok(self.ws_manager.request_auth(profile, request).await?)
+        } else {
+            Self::request_with_retry(
+                self,
+                &profile,
+                Message::Auth(request),
+                Self::get_authenticated_connection,
+                Self::remove_authenticated_connection,
+                None,
+            )
+            .await
+        }
     }
 
     /// Returns the `RequestId` that is listening.

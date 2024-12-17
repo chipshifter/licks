@@ -24,6 +24,9 @@ type RequestHashmap = Arc<scc::HashMap<ClientRequestId, oneshot::Sender<Message>
 type ListenerHashmap = Arc<scc::HashMap<ClientRequestId, mpsc::Sender<ListenerMessage>>>;
 
 #[derive(Debug)]
+/// A low-level "raw" connection, that just handles bytes in, bytes out.
+/// This struct is not aware of what method is used to connect or
+/// to what server it is connected.
 pub struct RawConnection {
     pub request_sender: mpsc::Sender<Vec<u8>>,
     pub unattended: Mutex<mpsc::Receiver<Message>>,
@@ -198,6 +201,12 @@ impl jenga::Service<MessageWire> for RawConnection {
         };
 
         Ok(resp)
+    }
+}
+
+impl Drop for RawConnection {
+    fn drop(&mut self) {
+        self.close();
     }
 }
 

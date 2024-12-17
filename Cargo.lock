@@ -3032,7 +3032,7 @@ dependencies = [
 [[package]]
 name = "jenga"
 version = "0.1.0"
-source = "git+https://github.com/hackerbirds/jenga.git#a64a681ba019dfe692e9b6915fa61352b081e7fc"
+source = "git+https://github.com/hackerbirds/jenga.git#3a1d6a3271a6d6f811866216a461cef2a0118c14"
 dependencies = [
  "thiserror 2.0.7",
  "tokio",
