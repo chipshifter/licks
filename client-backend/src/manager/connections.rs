@@ -2,14 +2,12 @@ use anyhow::anyhow;
 use futures_util::Future;
 use jenga::Service;
 use lib::api::connection::{
-    AuthRequest, ChatServiceMessage, ClientRequestId, ListenerId, Message, MessageWire,
-    UnauthRequest, MAX_CONNECTION_TIMEOUT_SECS, MIN_REQUEST_TIMEOUT_SECS,
+    AuthRequest, ChatServiceMessage, ListenerId, Message, MessageWire, UnauthRequest,
 };
 use lib::api::server::Server;
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::sync::Arc;
-use std::time::Duration;
 use tokio::sync::mpsc::Sender;
 
 use super::account::Profile;
@@ -19,28 +17,12 @@ use crate::net::connection::Connection;
 use crate::net::manager::WebsocketManager;
 use crate::net::websocket::WebsocketConnector;
 use crate::net::Connector;
-#[cfg(test)]
-use crate::tests::connections::{FakeAuthenticatedConnector, FakeConnector};
 use lib::crypto::blinded_address::BlindedAddressPublic;
 
 pub struct ConnectionManager {
     unauthenticated_connections: scc::HashMap<Server, Arc<Connection>>,
     authenticated_connections: scc::HashMap<Arc<Profile>, Arc<Connection>>,
     ws_manager: Arc<WebsocketManager>,
-    connection_mode: ConnectionMode,
-    max_retry_attempts: u32,
-    max_timeout_secs: Duration,
-}
-
-/// Tell the connection manager which type of connection we want to use.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub enum ConnectionMode {
-    #[default]
-    WebSocket,
-    #[cfg(test)]
-    FakeConnection,
-    #[cfg(test)]
-    FakeAuthenticatedConnection,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -55,26 +37,15 @@ pub enum RequestError {
 
 impl Default for ConnectionManager {
     fn default() -> Self {
-        ConnectionManager::new(ConnectionMode::default(), None, None)
-    }
-}
-
-impl ConnectionManager {
-    pub fn new(
-        connection_mode: ConnectionMode,
-        retry_attempts: Option<u32>,
-        max_timeout_secs: Option<Duration>,
-    ) -> ConnectionManager {
         ConnectionManager {
             unauthenticated_connections: scc::HashMap::new(),
             authenticated_connections: scc::HashMap::new(),
             ws_manager: Arc::new(WebsocketManager::new()),
-            connection_mode,
-            max_retry_attempts: retry_attempts.unwrap_or(5),
-            max_timeout_secs: max_timeout_secs.unwrap_or(MAX_CONNECTION_TIMEOUT_SECS),
         }
     }
+}
 
+impl ConnectionManager {
     #[inline]
     async fn load_or_create_connection<
         K: Debug + Clone + Eq + Hash,
@@ -158,7 +129,7 @@ impl ConnectionManager {
         let complete_authentication = |conn: Arc<Connection>| async move {
             // Complete authentication challenge
             let chall = self
-                .request_with_connection(&conn, Message::GetChallenge.into(), None, None)
+                .request_with_connection(&conn, Message::GetChallenge.into(), None)
                 .await?;
 
             match chall {
@@ -166,7 +137,7 @@ impl ConnectionManager {
                     let response = profile.get_auth_challenge_response(challenge);
 
                     match self
-                    .request_with_connection(&conn, Message::ChallengeResponse(response).into(), None, None)
+                    .request_with_connection(&conn, Message::ChallengeResponse(response).into(), None)
                     .await? {
                         Message::Ok => Ok(()),
                         other => Err(anyhow!("Challenge reponse failed, got response {other:?}"))
@@ -189,35 +160,16 @@ impl ConnectionManager {
     }
 
     async fn create_connection(&self, url: String) -> Result<Arc<Connection>> {
-        match self.connection_mode {
-            ConnectionMode::WebSocket => {
-                let ws = WebsocketConnector;
-                let ws_conn = ws.start_connection(url).await?;
+        let ws = WebsocketConnector;
+        let ws_conn = ws.start_connection(url).await?;
 
-                Ok(Arc::new(ws_conn))
-            }
-            #[cfg(test)]
-            ConnectionMode::FakeConnection => {
-                let fake = FakeConnector;
-                let fake_conn = fake.start_connection(url).await?;
-
-                Ok(Arc::new(fake_conn))
-            }
-            #[cfg(test)]
-            ConnectionMode::FakeAuthenticatedConnection => {
-                let fake = FakeAuthenticatedConnector;
-                let fake_conn = fake.start_connection(url).await?;
-
-                Ok(Arc::new(fake_conn))
-            }
-        }
+        Ok(Arc::new(ws_conn))
     }
 
     async fn request_with_connection(
         &self,
         connection: &Connection,
         wire: MessageWire,
-        _timeout_secs: Option<Duration>,
         // If Some, then the connection will start listening to the request
         listener: Option<Sender<ListenerMessage>>,
     ) -> Result<Message> {
@@ -233,82 +185,12 @@ impl ConnectionManager {
     }
 
     #[inline]
-    async fn request_with_retry<
-        'a,
-        'b,
-        GetConnFut: Future<Output = Result<Arc<Connection>>>,
-        Key: 'b,
-        GetConn: Fn(&'a Self, &'b Key) -> GetConnFut,
-        RemoveConnFut: Future<Output = ()>,
-        RemoveConn: Fn(&'a Self, &'b Key) -> RemoveConnFut,
-    >(
-        &'a self,
-        key: &'b Key,
-        message: Message,
-        get_connection_function: GetConn,
-        remove_connection_function: RemoveConn,
-        listener: Option<Sender<ListenerMessage>>,
-    ) -> Result<Message> {
-        let request_id = ClientRequestId::generate();
-        let wire = MessageWire(request_id, message);
-        let mut conn = get_connection_function(self, key).await?;
-
-        let mut tries = 1;
-        let mut request = Self::request_with_connection(
-            self,
-            &conn,
-            wire.clone(),
-            Some(MIN_REQUEST_TIMEOUT_SECS),
-            listener,
-        )
-        .await;
-
-        while tries < self.max_retry_attempts && request.is_err() {
-            let timeout_secs = self.max_timeout_secs / (self.max_retry_attempts - tries).pow(2);
-            log::warn!(
-                "Retrying request {:?}, timeout set to {:?}, retry attempt #{}/#{}",
-                request_id,
-                timeout_secs,
-                tries,
-                self.max_retry_attempts
-            );
-
-            conn = if conn.is_open() {
-                conn
-            } else {
-                remove_connection_function(self, key).await;
-
-                get_connection_function(self, key).await?
-            };
-
-            tries += 1;
-            request =
-                Self::request_with_connection(self, &conn, wire.clone(), Some(timeout_secs), None)
-                    .await;
-        }
-
-        Ok(request?)
-    }
-
-    #[inline]
     pub async fn request_unauthenticated(
         &self,
         server: &Server,
         request: UnauthRequest,
     ) -> Result<Message> {
-        if self.connection_mode == ConnectionMode::WebSocket {
-            Ok(self.ws_manager.request_unauth(server, request).await?)
-        } else {
-            Self::request_with_retry(
-                self,
-                server,
-                Message::Unauth(request),
-                Self::get_unauthenticated_connection,
-                Self::remove_unauthenticated_connection,
-                None,
-            )
-            .await
-        }
+        Ok(self.ws_manager.request_unauth(server, request).await?)
     }
 
     #[inline]
@@ -317,19 +199,7 @@ impl ConnectionManager {
         profile: Arc<Profile>,
         request: AuthRequest,
     ) -> Result<Message> {
-        if self.connection_mode == ConnectionMode::WebSocket {
-            Ok(self.ws_manager.request_auth(profile, request).await?)
-        } else {
-            Self::request_with_retry(
-                self,
-                &profile,
-                Message::Auth(request),
-                Self::get_authenticated_connection,
-                Self::remove_authenticated_connection,
-                None,
-            )
-            .await
-        }
+        Ok(self.ws_manager.request_auth(profile, request).await?)
     }
 
     /// Returns the `RequestId` that is listening.
@@ -341,14 +211,13 @@ impl ConnectionManager {
     ) -> Result<ListenerId> {
         let listener_id = ListenerId::generate();
 
-        let _ = Self::request_with_retry(
-            self,
-            server,
+        let connection = self.get_unauthenticated_connection(server).await?;
+        self.request_with_connection(
+            &connection,
             Message::Unauth(UnauthRequest::ChatService(
                 ChatServiceMessage::SubscribeToAddress(listener_id, blinded_address),
-            )),
-            Self::get_unauthenticated_connection,
-            Self::remove_unauthenticated_connection,
+            ))
+            .into(),
             Some(listener_tx),
         )
         .await?;
@@ -358,20 +227,12 @@ impl ConnectionManager {
 
     /// Stop listening to a blinded address. The [`RequestId`] should be
     /// the one that is listening.
-    ///
-    /// NOTE: The server always returns [`Message::Ok`], even if the [`RequestId`]
-    /// given wasn't listening to anything.
     pub async fn stop_listening(&self, server: &Server, listener_id: ListenerId) -> Result<()> {
-        // Ignore response, server always returns Message::Ok
-        let _resp = Self::request_with_retry(
-            self,
+        // Ignore response/result. Either it works and we don't need to know about it, or it doesn't
+        // and it's fine.
+        self.request_unauthenticated(
             server,
-            Message::Unauth(UnauthRequest::ChatService(
-                ChatServiceMessage::StopListening(listener_id),
-            )),
-            Self::get_unauthenticated_connection,
-            Self::remove_unauthenticated_connection,
-            None,
+            UnauthRequest::ChatService(ChatServiceMessage::StopListening(listener_id)),
         )
         .await?;
 
@@ -399,25 +260,10 @@ mod tests {
     use crate::manager::ProfileManager;
     use std::time::Duration;
 
-    pub async fn integration_test_timeout(connection_mode: ConnectionMode) {
-        let conns = ConnectionManager::new(connection_mode, Some(1), Some(Duration::from_secs(2)));
-        let server = Server::localhost();
-
-        let conn = conns
-            .get_unauthenticated_connection(&server)
-            .await
-            .expect("localhost server should be open");
-
-        assert!(conn.is_open());
-
-        assert!(conns
-            .request_with_connection(&conn, Message::Ignore.into(), None, None)
-            .await
-            .is_err());
-    }
-
-    pub async fn integration_test_heartbeat(connection_mode: ConnectionMode) {
-        let conns = ConnectionManager::new(connection_mode, None, None);
+    #[cfg(feature = "integration-testing")]
+    #[tokio::test]
+    pub async fn integration_test_heartbeat() {
+        let conns = ConnectionManager::default();
         let server = Server::localhost();
 
         let conn = conns
@@ -430,15 +276,17 @@ mod tests {
         assert!(conn.is_open());
         assert_eq!(
             conns
-                .request_with_connection(&conn, Message::Ok.into(), None, None)
+                .request_unauthenticated(&server, UnauthRequest::NoAccount.into())
                 .await
                 .expect("Connection should still be open"),
             Message::Error(ServiceError::InvalidOperation)
         );
     }
 
-    pub async fn integration_authenticated_channel(connection_mode: ConnectionMode) {
-        let conns = ConnectionManager::new(connection_mode, None, None);
+    #[cfg(feature = "integration-testing")]
+    #[tokio::test]
+    pub async fn integration_authenticated_channel() {
+        let conns = ConnectionManager::default();
 
         let manager = ProfileManager::initialise()
             .await
@@ -450,24 +298,6 @@ mod tests {
             .expect("Connection should still be open")
            , Message::Error(ServiceError::InvalidOperation),
         "At this point the connection should be open and valid, so the server replies back to our messages");
-    }
-
-    #[cfg(feature = "integration-testing")]
-    #[tokio::test(flavor = "multi_thread")]
-    pub async fn integration_test_heartbeat_all_impls() {
-        integration_test_heartbeat(ConnectionMode::WebSocket).await;
-    }
-
-    #[cfg(feature = "integration-testing")]
-    #[tokio::test(flavor = "multi_thread")]
-    pub async fn integration_test_timeout_all_impls() {
-        integration_test_timeout(ConnectionMode::WebSocket).await;
-    }
-
-    #[cfg(feature = "integration-testing")]
-    #[tokio::test(flavor = "multi_thread")]
-    pub async fn integration_test_authenticated_all_impls() {
-        integration_authenticated_channel(ConnectionMode::WebSocket).await;
     }
 
     #[cfg(feature = "integration-testing")]

@@ -192,30 +192,16 @@ impl jenga::Service<String> for FakeAuthenticatedConnector {
 mod tests {
     use std::{sync::Arc, time::Duration};
 
-    use lib::{
-        api::{
-            connection::{AuthRequest, UnauthRequest},
-            server::Server,
-        },
-        util::uuid::generate_uuid,
-    };
-    use tokio::task::JoinSet;
+    use lib::api::{connection::UnauthRequest, server::Server};
 
-    use crate::{
-        manager::connections::{ConnectionManager, ConnectionMode},
-        tests::utils::fake_profile,
-    };
+    use crate::manager::connections::ConnectionManager;
 
     #[tokio::test(flavor = "multi_thread")]
     /// Sends a request at the same time a connection closes.
     /// The connection manager is expected to automatically retry the request
     /// and if necessary will restart the connection a few times.
     pub async fn non_deterministic_stress_request_while_close() {
-        let conns = Arc::new(ConnectionManager::new(
-            ConnectionMode::FakeConnection,
-            None,
-            None,
-        ));
+        let conns = Arc::new(ConnectionManager::default());
 
         // this is a sort of race so we test many times and hope for the best
         let attempts = 100;
@@ -244,80 +230,12 @@ mod tests {
         }
     }
 
-    #[tokio::test(flavor = "multi_thread")]
-    /// Unrealistically tries many many connections/requests at once to see
-    /// how fast and how well the ConnectionManager handles multi-threaded loads.
-    pub async fn stress_many_unauthenticated_connections() {
-        let conns = Arc::new(ConnectionManager::new(
-            ConnectionMode::FakeConnection,
-            None,
-            None,
-        ));
-
-        let count = 1000;
-        let mut set = JoinSet::new();
-        for _ in 0..count {
-            let conns = conns.clone();
-            set.spawn(async move {
-                let server = Server {
-                    host: generate_uuid().to_string(),
-                    unauth_endpoint_port: 1234,
-                    auth_endpoint_port: 12345,
-                };
-
-                conns
-                    .request_unauthenticated(&server, UnauthRequest::NoAccount)
-                    .await
-                    .expect("Server responds");
-            });
-        }
-
-        while let Some(join) = set.join_next().await {
-            join.expect("connection shouldn't crash");
-        }
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    /// Unrealistically tries many many connections/requests at once to see
-    /// how fast and how well the ConnectionManager handles multi-threaded loads.
-    pub async fn stress_many_authenticated_connections() {
-        let conns = Arc::new(ConnectionManager::new(
-            ConnectionMode::FakeAuthenticatedConnection,
-            None,
-            None,
-        ));
-
-        let count = 100;
-        let mut set = JoinSet::new();
-        for _ in 0..count {
-            let conns = conns.clone();
-            set.spawn(async move {
-                let server = Server {
-                    host: generate_uuid().to_string(),
-                    unauth_endpoint_port: 1234,
-                    auth_endpoint_port: 12345,
-                };
-
-                let profile = Arc::new(fake_profile(server));
-
-                conns
-                    .request_authenticated(profile, AuthRequest::UsernameIsAlreadyTaken)
-                    .await
-                    .expect("Server responds");
-            });
-        }
-
-        while let Some(join) = set.join_next().await {
-            join.expect("connection shouldn't crash");
-        }
-    }
-
     #[tokio::test]
     /// Testing what happens if the connection drops before we try to retrieve the response
     /// Rust lazily evalues .await functions, so the request_unauthenticated actually only occurs
     /// after removing the connection, meaning it should automatically make a new connection.
     pub async fn integration_fault_connection_drop_while_receive() {
-        let conns = ConnectionManager::new(ConnectionMode::WebSocket, None, None);
+        let conns = ConnectionManager::default();
         let server = Server::localhost();
 
         let _ = conns
@@ -335,7 +253,7 @@ mod tests {
 
     #[tokio::test]
     pub async fn integration_test_close_connection() {
-        let conns = ConnectionManager::new(ConnectionMode::FakeConnection, None, None);
+        let conns = ConnectionManager::default();
         let server = Server::localhost();
 
         let conn = conns
