@@ -7,8 +7,7 @@ use lib::{
 };
 
 use crate::net::{
-    connection::{Connection, RawConnection},
-    ConnectionError, Connector,
+    connection::Connection, raw_connection::RawConnection, ConnectionError, Connector,
 };
 
 /// A fake connection (which is just a stream) used to test the connection manager.

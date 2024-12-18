@@ -2,6 +2,7 @@ use connection::Connection;
 
 pub mod connection;
 pub mod manager;
+pub mod raw_connection;
 pub mod websocket;
 
 #[derive(thiserror::Error, Debug, PartialEq, Eq)]
@@ -28,6 +29,8 @@ pub enum RequestError {
     ReceiveConnectionClosed,
     #[error("The request timed out")]
     Timeout,
+    #[error("The request gave an unexpected answer")]
+    UnexpectedAnswer,
 }
 
 /// This trait starts a generic [`Connection`] socket. This is the layer where

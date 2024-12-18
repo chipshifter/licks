@@ -8,7 +8,7 @@ use tokio_tungstenite::{connect_async, tungstenite::Message as TungsteniteMessag
 use crate::manager::account::Profile;
 
 use super::connection::Connection;
-use super::connection::RawConnection;
+use super::raw_connection::RawConnection;
 use super::ConnectionError;
 use super::Connector;
 
@@ -19,7 +19,7 @@ pub struct WebsocketConnector;
 
 impl Connector for WebsocketConnector {}
 
-// Unauthenticated connections
+/// Service for starting unauthenticated connections
 impl jenga::Service<String> for WebsocketConnector {
     type Response = Connection;
     type Error = ConnectionError;
@@ -46,7 +46,7 @@ impl jenga::Service<String> for WebsocketConnector {
     }
 }
 
-// authenticated connections: unauth connections + a challenge
+/// Service for starting authenticated connections: unauth connections + complete the challenge
 impl jenga::Service<Arc<Profile>> for WebsocketConnector {
     type Response = Connection;
     type Error = ConnectionError;
