@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use jenga::{timeout::TimeoutError, Service};
+use jenga::Service;
 use lib::{
     api::{
         connection::{AuthRequest, ListenerId, Message, MessageWire, UnauthRequest},
