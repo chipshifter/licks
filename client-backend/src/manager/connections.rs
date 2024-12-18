@@ -1,27 +1,19 @@
-use anyhow::anyhow;
 use futures_util::Future;
-use jenga::Service;
-use lib::api::connection::{
-    AuthRequest, ChatServiceMessage, ListenerId, Message, MessageWire, UnauthRequest,
-};
+use lib::api::connection::{AuthRequest, Message, UnauthRequest};
 use lib::api::server::Server;
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::sync::Arc;
-use tokio::sync::mpsc::Sender;
 
 use super::account::Profile;
-use super::listener::ListenerMessage;
 use crate::manager::error::Result;
 use crate::net::connection::Connection;
 use crate::net::manager::WebsocketManager;
 use crate::net::websocket::WebsocketConnector;
 use crate::net::Connector;
-use lib::crypto::blinded_address::BlindedAddressPublic;
 
 pub struct ConnectionManager {
     unauthenticated_connections: scc::HashMap<Server, Arc<Connection>>,
-    authenticated_connections: scc::HashMap<Arc<Profile>, Arc<Connection>>,
     ws_manager: Arc<WebsocketManager>,
 }
 
@@ -39,7 +31,6 @@ impl Default for ConnectionManager {
     fn default() -> Self {
         ConnectionManager {
             unauthenticated_connections: scc::HashMap::new(),
-            authenticated_connections: scc::HashMap::new(),
             ws_manager: Arc::new(WebsocketManager::new()),
         }
     }
@@ -86,7 +77,11 @@ impl ConnectionManager {
             }
         }
 
-        let conn = self.create_connection(connection_url).await?;
+        let conn = {
+            let ws = WebsocketConnector;
+            let ws_conn = ws.start_connection(connection_url).await?;
+            Arc::new(ws_conn)
+        };
 
         log::debug!("ConnectionManager: Creating new connection succeeded");
 
@@ -120,71 +115,6 @@ impl ConnectionManager {
     }
 
     #[inline]
-    pub async fn get_authenticated_connection(
-        &self,
-        profile: &Arc<Profile>,
-    ) -> Result<Arc<Connection>> {
-        let key = profile.clone();
-
-        let complete_authentication = |conn: Arc<Connection>| async move {
-            // Complete authentication challenge
-            let chall = self
-                .request_with_connection(&conn, Message::GetChallenge.into(), None)
-                .await?;
-
-            match chall {
-                Message::Challenge(challenge) => {
-                    let response = profile.get_auth_challenge_response(challenge);
-
-                    match self
-                    .request_with_connection(&conn, Message::ChallengeResponse(response).into(), None)
-                    .await? {
-                        Message::Ok => Ok(()),
-                        other => Err(anyhow!("Challenge reponse failed, got response {other:?}"))
-                    }
-                },
-                other => Err(anyhow!("Tried doing an authentication challenge, but the server responded unexpectedly: {other:?}"))
-            }
-        };
-
-        let url = key.get_server().ws_url_auth();
-
-        Self::load_or_create_connection(
-            self,
-            &key,
-            url,
-            &self.authenticated_connections,
-            complete_authentication,
-        )
-        .await
-    }
-
-    async fn create_connection(&self, url: String) -> Result<Arc<Connection>> {
-        let ws = WebsocketConnector;
-        let ws_conn = ws.start_connection(url).await?;
-
-        Ok(Arc::new(ws_conn))
-    }
-
-    async fn request_with_connection(
-        &self,
-        connection: &Connection,
-        wire: MessageWire,
-        // If Some, then the connection will start listening to the request
-        listener: Option<Sender<ListenerMessage>>,
-    ) -> Result<Message> {
-        let request_id = wire.0;
-
-        let resp = connection.request(wire).await?;
-
-        if let Some(tx) = listener {
-            connection.start_listen(request_id, tx).await;
-        }
-
-        Ok(resp)
-    }
-
-    #[inline]
     pub async fn request_unauthenticated(
         &self,
         server: &Server,
@@ -202,51 +132,8 @@ impl ConnectionManager {
         Ok(self.ws_manager.request_auth(profile, request).await?)
     }
 
-    /// Returns the `RequestId` that is listening.
-    pub async fn listen_to_blinded_address(
-        &self,
-        server: &Server,
-        blinded_address: BlindedAddressPublic,
-        listener_tx: Sender<ListenerMessage>,
-    ) -> Result<ListenerId> {
-        let listener_id = ListenerId::generate();
-
-        let connection = self.get_unauthenticated_connection(server).await?;
-        self.request_with_connection(
-            &connection,
-            Message::Unauth(UnauthRequest::ChatService(
-                ChatServiceMessage::SubscribeToAddress(listener_id, blinded_address),
-            ))
-            .into(),
-            Some(listener_tx),
-        )
-        .await?;
-
-        Ok(listener_id)
-    }
-
-    /// Stop listening to a blinded address. The [`RequestId`] should be
-    /// the one that is listening.
-    pub async fn stop_listening(&self, server: &Server, listener_id: ListenerId) -> Result<()> {
-        // Ignore response/result. Either it works and we don't need to know about it, or it doesn't
-        // and it's fine.
-        self.request_unauthenticated(
-            server,
-            UnauthRequest::ChatService(ChatServiceMessage::StopListening(listener_id)),
-        )
-        .await?;
-
-        Ok(())
-    }
-
     pub async fn remove_unauthenticated_connection(&self, server: &Server) {
         if let Some((_, conn)) = self.unauthenticated_connections.remove_async(server).await {
-            conn.close();
-        }
-    }
-
-    pub async fn remove_authenticated_connection(&self, profile: &Arc<Profile>) {
-        if let Some((_, conn)) = self.authenticated_connections.remove_async(profile).await {
             conn.close();
         }
     }
@@ -258,30 +145,6 @@ mod tests {
 
     use super::*;
     use crate::manager::ProfileManager;
-    use std::time::Duration;
-
-    #[cfg(feature = "integration-testing")]
-    #[tokio::test]
-    pub async fn integration_test_heartbeat() {
-        let conns = ConnectionManager::default();
-        let server = Server::localhost();
-
-        let conn = conns
-            .get_unauthenticated_connection(&server)
-            .await
-            .expect("localhost server should be open");
-
-        tokio::time::sleep(Duration::from_secs(60)).await;
-
-        assert!(conn.is_open());
-        assert_eq!(
-            conns
-                .request_unauthenticated(&server, UnauthRequest::NoAccount.into())
-                .await
-                .expect("Connection should still be open"),
-            Message::Error(ServiceError::InvalidOperation)
-        );
-    }
 
     #[cfg(feature = "integration-testing")]
     #[tokio::test]

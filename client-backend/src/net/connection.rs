@@ -3,9 +3,12 @@ use std::{ops::Deref, sync::Arc, time::Duration};
 
 use futures_util::{Sink, SinkExt, Stream, StreamExt};
 use jenga::{timeout::TimeoutError, Middleware};
-use lib::api::connection::{
-    ChatServiceMessage, ClientRequestId, Message, MessageWire, UnauthRequest,
-    MIN_REQUEST_TIMEOUT_SECS,
+use lib::{
+    api::connection::{
+        ChatServiceMessage, ClientRequestId, ListenerId, Message, MessageWire, UnauthRequest,
+        MIN_REQUEST_TIMEOUT_SECS,
+    },
+    crypto::blinded_address::BlindedAddressPublic,
 };
 use tokio::{
     sync::{mpsc, oneshot},
@@ -200,12 +203,52 @@ pub struct Connection {
     >,
 }
 
-impl jenga::Service<MessageWire> for Connection {
+/// The message enum used to request [`Connection`]'s service.
+#[derive(Debug, Clone)]
+pub enum ConnectionServiceMessage {
+    Request(MessageWire),
+    Listen(
+        ListenerId,
+        BlindedAddressPublic,
+        mpsc::Sender<ListenerMessage>,
+    ),
+}
+
+impl From<MessageWire> for ConnectionServiceMessage {
+    fn from(value: MessageWire) -> Self {
+        Self::Request(value)
+    }
+}
+
+impl jenga::Service<ConnectionServiceMessage> for Connection {
     type Response = Message;
     type Error = TimeoutError<RequestError>;
 
-    async fn request(&self, msg: MessageWire) -> Result<Self::Response, Self::Error> {
-        self.inner.request(msg).await
+    async fn request(&self, msg: ConnectionServiceMessage) -> Result<Self::Response, Self::Error> {
+        match msg {
+            ConnectionServiceMessage::Request(message_wire) => {
+                self.inner.request(message_wire).await
+            }
+            ConnectionServiceMessage::Listen(listener_id, blinded_address, tx) => {
+                let message_wire: MessageWire = Message::Unauth(UnauthRequest::ChatService(
+                    ChatServiceMessage::SubscribeToAddress(listener_id, blinded_address),
+                ))
+                .into();
+
+                let request_id = message_wire.0;
+                match self.inner.request(message_wire).await {
+                    Ok(resp) => {
+                        if let Message::Ok = resp {
+                            self.start_listen(request_id, tx).await;
+                            Ok(Message::Ok)
+                        } else {
+                            panic!()
+                        }
+                    }
+                    Err(e) => Err(e),
+                }
+            }
+        }
     }
 }
 

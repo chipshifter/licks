@@ -14,6 +14,7 @@ use std::{
 
 use crate::{
     database::Database, manager::servers::ServerParser, mls::credentials::LicksIdentityProvider,
+    net::manager::WebsocketManager,
 };
 
 use self::{account::Profile, connections::ConnectionManager, groups::GroupManager};
@@ -38,6 +39,9 @@ use std::fmt::Debug;
 
 pub static CONNECTIONS_MANAGER: LazyLock<ConnectionManager> =
     LazyLock::new(ConnectionManager::default);
+
+pub static NEW_CONNECTIONS_MANAGER: LazyLock<WebsocketManager> =
+    LazyLock::new(WebsocketManager::default);
 
 pub type MlsClientConfig = WithIdentityProvider<
     LicksIdentityProvider,

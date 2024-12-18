@@ -23,7 +23,7 @@ use crate::{
 use super::{
     groups::ProcessedMessage,
     notifications::{Notification, NotificationSender},
-    ProfileManager, CONNECTIONS_MANAGER,
+    ProfileManager, NEW_CONNECTIONS_MANAGER,
 };
 
 /// What is sent by the server when listening to a [`BlindedAddress`].
@@ -291,8 +291,8 @@ impl Listener {
         blinded_address: BlindedAddressPublic,
     ) -> Result<ListenerId, ()> {
         let server = self.key.0.get_server();
-        let request_id = CONNECTIONS_MANAGER
-            .listen_to_blinded_address(server, blinded_address, self.sender.clone())
+        let request_id = NEW_CONNECTIONS_MANAGER
+            .start_listen(server, blinded_address, self.sender.clone())
             .await
             .map_err(|_| ())?;
 
@@ -312,11 +312,8 @@ impl Listener {
     }
 
     /// Returns Err if the connection failed, or if the epoch wasn't being listened to.
-    async fn stop_listening(&self, listener_id: ListenerId) -> Result<(), ()> {
-        CONNECTIONS_MANAGER
-            .stop_listening(self.key.0.get_server(), listener_id)
-            .await
-            .map_err(|_| ())
+    async fn stop_listening(&self, _listener_id: ListenerId) -> Result<(), ()> {
+        Err(())
     }
 
     /// 1) Handle message

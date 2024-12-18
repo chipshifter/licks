@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use futures_util::{SinkExt, StreamExt};
 use lib::api::connection::Message;
+use lib::api::connection::MessageWire;
 use tokio_tungstenite::{connect_async, tungstenite::Message as TungsteniteMessage};
 
 use crate::manager::account::Profile;
@@ -58,7 +59,7 @@ impl jenga::Service<Arc<Profile>> for WebsocketConnector {
         .await?;
 
         let challenge_1 = unauth_conn
-            .request(Message::GetChallenge.into())
+            .request(MessageWire::from(Message::GetChallenge).into())
             .await
             .map_err(|_| ConnectionError::AuthChallengeFailed)?;
 
@@ -69,7 +70,7 @@ impl jenga::Service<Arc<Profile>> for WebsocketConnector {
         let challenge_response = msg.get_auth_challenge_response(server_challenge);
 
         let challenge_2 = unauth_conn
-            .request(Message::ChallengeResponse(challenge_response).into())
+            .request(MessageWire::from(Message::ChallengeResponse(challenge_response)).into())
             .await
             .map_err(|_| ConnectionError::AuthChallengeFailed)?;
 
