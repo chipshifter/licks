@@ -17,7 +17,7 @@ use crate::{
     ui::GroupUi,
 };
 
-use super::{error::Result, MlsClient, MlsClientConfig, ProfileManager, CONNECTIONS_MANAGER};
+use super::{error::Result, MlsClient, MlsClientConfig, ProfileManager, WEBSOCKET_MANAGER};
 use anyhow::{bail, Context};
 use mls_rs::{
     error::MlsError, group::proposal::Proposal, mls_rs_codec::MlsDecode, ExtensionList, Group,
@@ -489,8 +489,8 @@ impl ProfileManager {
             .load_mls_rs_group(group_id)
             .context("Group couldn't be found in database")?;
 
-        let key_package = match CONNECTIONS_MANAGER
-            .request_unauthenticated(
+        let key_package = match WEBSOCKET_MANAGER
+            .request_unauth(
                 self.profile.get_server(),
                 UnauthRequest::GetKeyPackage(account_id),
             )
@@ -516,8 +516,8 @@ impl ProfileManager {
         };
         let add_commit = group.commit_builder().add_member(key_package)?.build()?;
 
-        CONNECTIONS_MANAGER
-            .request_unauthenticated(
+        WEBSOCKET_MANAGER
+            .request_unauth(
                 self.profile.get_server(),
                 UnauthRequest::ChatService(ChatServiceMessage::SendMessage(SendMessageRequest {
                     blinded_address_proof: GroupManager::generate_blinded_address(&group)?
@@ -566,8 +566,8 @@ impl ProfileManager {
         let blinded_address_proof =
             GroupManager::generate_blinded_address(&group)?.create_proof(application_message);
 
-        let resp = CONNECTIONS_MANAGER
-            .request_unauthenticated(
+        let resp = WEBSOCKET_MANAGER
+            .request_unauth(
                 self.profile.get_server(),
                 UnauthRequest::ChatService(ChatServiceMessage::SendMessage(SendMessageRequest {
                     blinded_address_proof,

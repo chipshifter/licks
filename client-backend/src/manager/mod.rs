@@ -1,5 +1,4 @@
 pub mod account;
-pub mod connections;
 pub mod error;
 pub mod groups;
 pub mod key_package;
@@ -17,7 +16,7 @@ use crate::{
     net::manager::WebsocketManager,
 };
 
-use self::{account::Profile, connections::ConnectionManager, groups::GroupManager};
+use self::{account::Profile, groups::GroupManager};
 use super::account::register::create_account;
 use anyhow::Result;
 use lib::{
@@ -37,11 +36,7 @@ use mls_rs_crypto_rustcrypto::RustCryptoProvider;
 use mls_rs_provider_sqlite::SqLiteDataStorageEngine;
 use std::fmt::Debug;
 
-pub static CONNECTIONS_MANAGER: LazyLock<ConnectionManager> =
-    LazyLock::new(ConnectionManager::default);
-
-pub static NEW_CONNECTIONS_MANAGER: LazyLock<WebsocketManager> =
-    LazyLock::new(WebsocketManager::default);
+pub static WEBSOCKET_MANAGER: LazyLock<WebsocketManager> = LazyLock::new(WebsocketManager::default);
 
 pub type MlsClientConfig = WithIdentityProvider<
     LicksIdentityProvider,
@@ -124,8 +119,7 @@ impl ProfileManager {
 
             let our_server: Box<Server> = Server::parse(server_domain)?.into();
 
-            let profile =
-                create_account(&our_server, &CONNECTIONS_MANAGER, random_username_hash).await?;
+            let profile = create_account(&our_server, random_username_hash).await?;
 
             // save new profile to db
             sqlite_database.set_profile(&profile)?;

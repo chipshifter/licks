@@ -17,7 +17,9 @@ use tokio::{
 
 use tokio_util::sync::CancellationToken;
 
-use crate::manager::{connections::RequestError, listener::ListenerMessage};
+use crate::manager::listener::ListenerMessage;
+
+use super::RequestError;
 
 type RequestHashmap = Arc<scc::HashMap<ClientRequestId, oneshot::Sender<Message>>>;
 type ListenerHashmap = Arc<scc::HashMap<ClientRequestId, mpsc::Sender<ListenerMessage>>>;
@@ -203,7 +205,7 @@ pub struct Connection {
     >,
 }
 
-/// The message enum used to request [`Connection`]'s service.
+/// The message enum used to request [`Connection`]'s.
 #[derive(Debug, Clone)]
 pub enum ConnectionServiceMessage {
     Request(MessageWire),

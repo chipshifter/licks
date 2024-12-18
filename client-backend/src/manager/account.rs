@@ -18,7 +18,7 @@ use lib::{
 
 pub use lib::crypto::usernames::{Username, UsernameHash};
 
-use super::{ProfileManager, CONNECTIONS_MANAGER};
+use super::{ProfileManager, WEBSOCKET_MANAGER};
 use crate::mls::credentials::LicksMlsCredential;
 use mls_rs::identity::SigningIdentity;
 
@@ -98,8 +98,8 @@ impl ProfileManager {
         &self,
         username: Username,
     ) -> anyhow::Result<Option<AccountId>> {
-        let resp = CONNECTIONS_MANAGER
-            .request_unauthenticated(
+        let resp = WEBSOCKET_MANAGER
+            .request_unauth(
                 self.get_server(),
                 UnauthRequest::GetAccountFromUsername(username.hash()),
             )

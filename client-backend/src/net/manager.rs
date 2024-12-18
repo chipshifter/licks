@@ -10,12 +10,12 @@ use lib::{
 };
 use tokio::sync::mpsc;
 
-use crate::manager::{account::Profile, connections::RequestError, listener::ListenerMessage};
+use crate::manager::{account::Profile, listener::ListenerMessage};
 
 use super::{
     connection::{Connection, ConnectionServiceMessage},
     websocket::WebsocketConnector,
-    ConnectionError,
+    ConnectionError, RequestError,
 };
 
 /// Connection with jenga middlewares, notably Restart, which automatically restarts a connection

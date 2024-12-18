@@ -190,85 +190,16 @@ impl jenga::Service<String> for FakeAuthenticatedConnector {
 }
 
 mod tests {
-    use std::{sync::Arc, time::Duration};
-
-    use lib::api::{connection::UnauthRequest, server::Server};
-
-    use crate::manager::connections::ConnectionManager;
-
-    #[tokio::test(flavor = "multi_thread")]
-    /// Sends a request at the same time a connection closes.
-    /// The connection manager is expected to automatically retry the request
-    /// and if necessary will restart the connection a few times.
-    pub async fn non_deterministic_stress_request_while_close() {
-        let conns = Arc::new(ConnectionManager::default());
-
-        // this is a sort of race so we test many times and hope for the best
-        let attempts = 100;
-        for _ in 0..attempts {
-            let conns = conns.clone();
-            let server = Server::localhost();
-            let conn = conns
-                .get_unauthenticated_connection(&server)
-                .await
-                .expect("server is open on localhost");
-
-            let request = tokio::spawn(async move {
-                conns
-                    .request_unauthenticated(&server, UnauthRequest::NoAccount)
-                    .await
-                    .expect("request should be retried on a new connection if failed")
-            });
-
-            let close_conn = tokio::spawn(async move {
-                conn.close();
-            });
-
-            let (one, two) = tokio::join!(request, close_conn);
-            assert!(one.is_ok());
-            assert!(two.is_ok());
-        }
-    }
-
     #[tokio::test]
     /// Testing what happens if the connection drops before we try to retrieve the response
     /// Rust lazily evalues .await functions, so the request_unauthenticated actually only occurs
     /// after removing the connection, meaning it should automatically make a new connection.
     pub async fn integration_fault_connection_drop_while_receive() {
-        let conns = ConnectionManager::default();
-        let server = Server::localhost();
-
-        let _ = conns
-            .request_unauthenticated(&server, UnauthRequest::NoAccount)
-            .await
-            .expect("fake connections will always open");
-
-        let req_future = conns.request_unauthenticated(&server, UnauthRequest::NoAccount);
-
-        conns.remove_unauthenticated_connection(&server).await;
-        tokio::time::sleep(Duration::from_millis(100)).await;
-
-        req_future.await.expect("We get a response from the server");
+        todo!("we need close API to do this test");
     }
 
     #[tokio::test]
     pub async fn integration_test_close_connection() {
-        let conns = ConnectionManager::default();
-        let server = Server::localhost();
-
-        let conn = conns
-            .get_unauthenticated_connection(&server)
-            .await
-            .expect("fake connections will always open");
-
-        assert!(conn.is_open());
-
-        conn.close();
-
-        // wait a bit to make sure it finishes
-        // (this isn't instant)
-        tokio::time::sleep(Duration::from_millis(100)).await;
-
-        assert!(!conn.is_open());
+        todo!("we need close API to do this test");
     }
 }

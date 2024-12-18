@@ -23,7 +23,7 @@ use crate::{
 use super::{
     groups::ProcessedMessage,
     notifications::{Notification, NotificationSender},
-    ProfileManager, NEW_CONNECTIONS_MANAGER,
+    ProfileManager, WEBSOCKET_MANAGER,
 };
 
 /// What is sent by the server when listening to a [`BlindedAddress`].
@@ -291,7 +291,7 @@ impl Listener {
         blinded_address: BlindedAddressPublic,
     ) -> Result<ListenerId, ()> {
         let server = self.key.0.get_server();
-        let request_id = NEW_CONNECTIONS_MANAGER
+        let request_id = WEBSOCKET_MANAGER
             .start_listen(server, blinded_address, self.sender.clone())
             .await
             .map_err(|_| ())?;

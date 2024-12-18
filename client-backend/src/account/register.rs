@@ -1,4 +1,4 @@
-use crate::manager::{account::Profile, connections::ConnectionManager};
+use crate::manager::{account::Profile, WEBSOCKET_MANAGER};
 use anyhow::{bail, Context, Result};
 use lib::{
     api::{
@@ -16,11 +16,7 @@ use lib::{
     identifiers::{DeviceId, LicksIdentifier},
 };
 
-pub async fn create_account(
-    server: &Server,
-    conn: &ConnectionManager,
-    username_hash: UsernameHash,
-) -> Result<Profile> {
+pub async fn create_account(server: &Server, username_hash: UsernameHash) -> Result<Profile> {
     let (account_public, mut account_secret) = Ed25519AccountCert::generate_keys();
 
     // Stage 1 request
@@ -28,7 +24,7 @@ pub async fn create_account(
         Stage1Message::HereIsMyAccountPublicKey(account_public.to_bytes().to_vec()),
     ));
 
-    let assigned_account_id = match conn.request_unauthenticated(server, req).await? {
+    let assigned_account_id = match WEBSOCKET_MANAGER.request_unauth(server, req).await? {
         Message::Unauth(UnauthRequest::Registration(RegistrationService::Stage1(
             Stage1Message::HereIsYourAccountId(account_id),
         ))) => Some(account_id),
@@ -52,7 +48,7 @@ pub async fn create_account(
     // Stage 2 request
     let req = UnauthRequest::Registration(RegistrationService::Stage2(account_cert_serialized));
 
-    match conn.request_unauthenticated(server, req).await? {
+    match WEBSOCKET_MANAGER.request_unauth(server, req).await? {
         Message::Ok => {
             log::info!("Stage 2 registration success");
         }
@@ -80,12 +76,10 @@ pub async fn create_account(
         username_hash,
     }));
 
-    match conn.request_unauthenticated(server, req).await? {
+    match WEBSOCKET_MANAGER.request_unauth(server, req).await? {
         Message::Ok => {
             log::info!("Stage 3 registration success");
             let profile: Profile = Profile::V1(certificate_chain_secret);
-
-            conn.remove_unauthenticated_connection(server).await;
 
             Ok(profile)
         }
@@ -100,8 +94,6 @@ pub async fn create_account(
 mod tests {
     use lib::crypto::usernames::Username;
 
-    use crate::manager::CONNECTIONS_MANAGER;
-
     use super::*;
 
     #[tokio::test]
@@ -110,7 +102,6 @@ mod tests {
 
         create_account(
             &server,
-            &CONNECTIONS_MANAGER,
             Username::new("test_registation".to_string())
                 .expect("username is valid")
                 .hash(),
