@@ -36,9 +36,7 @@ pub const SCHEMAS: [&str; LATEST_DATABASE_VERSION] = [
         received_timestamp          INTEGER     NOT NULL,
         message_kind                INTEGER     NOT NULL,
         plaintext_content           TEXT,
-        reply_message_timestamp     INTEGER,
-        FOREIGN KEY(group_id)   REFERENCES mls_group(group_id)
-        FOREIGN KEY(account_id) REFERENCES contacts(account_id)
+        reply_message_timestamp     INTEGER
     );
 
     CREATE TABLE profile(

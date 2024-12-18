@@ -8,7 +8,7 @@ use client_backend::{
 };
 use components::icon::ImageIcon;
 use dioxus::prelude::*;
-use dioxus_logger::tracing::{error, info, Level};
+use dioxus_logger::tracing::{error, info};
 use panels::{
     chat::{ChatPanel, ChatPanelProps},
     groups::{message_service, GroupsTab, GroupsTabProps},
@@ -30,7 +30,7 @@ pub fn get_default_profile() -> &'static ClientProfile<'static> {
 
 fn main() {
     env_logger::init();
-    dioxus_logger::init(Level::DEBUG).expect("logger should initialize");
+    dioxus_logger::initialize_default();
 
     info!("Starting Dioxus app");
 
@@ -56,7 +56,7 @@ fn LoadingScreen() -> Element {
         match LICKS_CLIENT
             .get()
             .expect("We just initialized the OnceCell")
-            .get_profile("wawa")
+            .get_in_memory_profile("wawa")
             .await
         {
             Ok(client) => {
