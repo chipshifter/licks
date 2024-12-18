@@ -1,4 +1,10 @@
-use connection::Connection;
+use std::sync::Arc;
+
+use connection::{Connection, ConnectionServiceMessage};
+use jenga::timeout::TimeoutError;
+use lib::api::connection::Message;
+
+use crate::manager::account::Profile;
 
 pub mod connection;
 pub mod manager;
@@ -33,13 +39,25 @@ pub enum RequestError {
     UnexpectedAnswer,
 }
 
-/// This trait starts a generic [`Connection`] socket. This is the layer where
-/// diff connection technologies like WebSocket or WebTransport can be implemented.
-pub trait Connector:
-    jenga::Service<String, Response = Connection, Error = ConnectionError>
-{
-    #[allow(async_fn_in_trait)]
-    async fn start_connection(&self, url: String) -> Result<Connection, ConnectionError> {
-        self.request(url).await
-    }
-}
+// Connection + jenga middlewares, notably Restart, which automatically restarts a connection
+// if a message fails to send.
+ 
+type UnauthConnectionJenga<Connector> = jenga::restart::Restart<
+    ConnectionServiceMessage,
+    Message,
+    TimeoutError<RequestError>,
+    Connection,
+    String,
+    ConnectionError,
+    Connector,
+>;
+
+type AuthConnectionJenga<Connector> = jenga::restart::Restart<
+    ConnectionServiceMessage,
+    Message,
+    TimeoutError<RequestError>,
+    Connection,
+    Arc<Profile>,
+    ConnectionError,
+    Connector,
+>;

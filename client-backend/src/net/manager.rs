@@ -13,38 +13,15 @@ use tokio::sync::mpsc;
 use crate::manager::{account::Profile, listener::ListenerMessage};
 
 use super::{
-    connection::{Connection, ConnectionServiceMessage},
-    websocket::WebsocketConnector,
-    ConnectionError, RequestError,
+    connection::ConnectionServiceMessage, websocket::WebsocketConnector, AuthConnectionJenga,
+    UnauthConnectionJenga,
 };
-
-/// Connection with jenga middlewares, notably Restart, which automatically restarts a connection
-/// if a message fails to send.
-type UnauthConnectionJenga = jenga::restart::Restart<
-    ConnectionServiceMessage,
-    Message,
-    TimeoutError<RequestError>,
-    Connection,
-    String,
-    ConnectionError,
-    WebsocketConnector,
->;
-
-type AuthConnectionJenga = jenga::restart::Restart<
-    ConnectionServiceMessage,
-    Message,
-    TimeoutError<RequestError>,
-    Connection,
-    Arc<Profile>,
-    ConnectionError,
-    WebsocketConnector,
->;
 
 #[derive(Default)]
 pub struct WebsocketManager {
     connector: WebsocketConnector,
-    unauth_conns: Arc<scc::HashMap<String, UnauthConnectionJenga>>,
-    auth_conns: Arc<scc::HashMap<Arc<Profile>, AuthConnectionJenga>>,
+    unauth_conns: Arc<scc::HashMap<String, UnauthConnectionJenga<WebsocketConnector>>>,
+    auth_conns: Arc<scc::HashMap<Arc<Profile>, AuthConnectionJenga<WebsocketConnector>>>,
 }
 
 impl WebsocketManager {

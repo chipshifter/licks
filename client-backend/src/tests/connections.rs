@@ -6,9 +6,7 @@ use lib::{
     crypto::challenge::AuthChallenge,
 };
 
-use crate::net::{
-    connection::Connection, raw_connection::RawConnection, ConnectionError, Connector,
-};
+use crate::net::{connection::Connection, raw_connection::RawConnection, ConnectionError};
 
 /// A fake connection (which is just a stream) used to test the connection manager.
 /// It takes in bytes in input and output. The connection deserializes the input and
@@ -79,7 +77,6 @@ impl Stream for FakeConnection {
 }
 
 pub struct FakeConnector;
-impl Connector for FakeConnector {}
 impl jenga::Service<String> for FakeConnector {
     type Response = Connection;
     type Error = ConnectionError;
@@ -177,7 +174,6 @@ impl Stream for FakeAuthenticatedConnection {
 }
 
 pub struct FakeAuthenticatedConnector;
-impl Connector for FakeAuthenticatedConnector {}
 impl jenga::Service<String> for FakeAuthenticatedConnector {
     type Response = Connection;
     type Error = ConnectionError;
