@@ -1,4 +1,7 @@
-use crate::crypto::blinded_address::{BlindedAddressProof, BlindedAddressPublic};
+use crate::{
+    crypto::blinded_address::{BlindedAddressProof, BlindedAddressPublic},
+    util::uuid::generate_uuid_v7,
+};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -30,7 +33,7 @@ pub struct DeliveryStamp(Uuid);
 
 impl DeliveryStamp {
     pub fn generate() -> Self {
-        DeliveryStamp(Uuid::now_v7())
+        DeliveryStamp(generate_uuid_v7())
     }
 
     /// Returns the embedded timestamp.

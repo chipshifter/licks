@@ -14,7 +14,7 @@ use crate::{
     },
     error::ProtoError,
     identifiers::AccountId,
-    util::uuid::generate_uuid,
+    util::uuid::{generate_uuid, generate_uuid_v7},
 };
 
 use super::{
@@ -189,7 +189,7 @@ impl Default for ListenerId {
 
 impl ListenerId {
     pub fn generate() -> Self {
-        Self(Uuid::now_v7())
+        Self(generate_uuid_v7())
     }
 
     pub fn to_vec(self) -> Vec<u8> {
