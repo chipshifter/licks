@@ -20,7 +20,7 @@ use super::{
 #[derive(Default)]
 pub struct WebsocketManager {
     connector: WebsocketConnector,
-    unauth_conns: Arc<scc::HashMap<String, UnauthConnectionJenga<WebsocketConnector>>>,
+    unauth_conns: Arc<scc::HashMap<Server, UnauthConnectionJenga<WebsocketConnector>>>,
     auth_conns: Arc<scc::HashMap<Arc<Profile>, AuthConnectionJenga<WebsocketConnector>>>,
 }
 
@@ -38,14 +38,13 @@ impl WebsocketManager {
         server: &Server,
         msg: UnauthRequest,
     ) -> anyhow::Result<Message> {
-        let url = server.ws_url_unauth();
         let msg = MessageWire::from(Message::Unauth(msg)).into();
-        if let Some(conn) = self.unauth_conns.get_async(&url).await {
+        if let Some(conn) = self.unauth_conns.get_async(server).await {
             Ok(conn.get().request(msg).await?)
         } else {
-            let ws = UnauthConnectionJenga::new(self.connector, url.clone()).await?;
+            let ws = UnauthConnectionJenga::new(self.connector, server.ws_url_unauth()).await?;
             let resp = ws.request(msg).await;
-            let _ = self.unauth_conns.insert_async(url, ws).await;
+            let _ = self.unauth_conns.insert_async(server.clone(), ws).await;
 
             Ok(resp?)
         }
@@ -75,18 +74,21 @@ impl WebsocketManager {
         listener_tx: mpsc::Sender<ListenerMessage>,
     ) -> anyhow::Result<ListenerId> {
         let listener_id = ListenerId::generate();
-        let url = server.ws_url_unauth();
         let msg = ConnectionServiceMessage::Listen(listener_id, blinded_address, listener_tx);
 
-        if let Some(conn) = self.unauth_conns.get_async(&url).await {
+        if let Some(conn) = self.unauth_conns.get_async(server).await {
             let _ = conn.get().request(msg).await?;
         } else {
             let ws = UnauthConnectionJenga::new(self.connector, url.clone()).await?;
             let resp = ws.request(msg).await;
-            let _ = self.unauth_conns.insert_async(url, ws).await;
+            let _ = self.unauth_conns.insert_async(server.clone(), ws).await;
             let _ = resp?;
         }
 
         Ok(listener_id)
+    }
+
+    pub async fn stop_listen(&self, server: &Server, listen_id: ListenerId) {
+        todo!();
     }
 }
