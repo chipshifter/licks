@@ -3,7 +3,9 @@ use std::{sync::Arc, time::Duration};
 
 use futures_util::{Sink, SinkExt, Stream, StreamExt};
 use lib::{
-    api::connection::{ChatServiceMessage, ClientRequestId, Message, MessageWire, UnauthRequest},
+    api::connection::{
+        ChatServiceMessage, ClientRequestId, ListenerId, Message, MessageWire, UnauthRequest,
+    },
     crypto::noise::ClientHandshake,
 };
 use tokio::{
@@ -18,7 +20,8 @@ use crate::manager::listener::ListenerMessage;
 use super::RequestError;
 
 type RequestHashmap = Arc<scc::HashMap<ClientRequestId, oneshot::Sender<Message>>>;
-type ListenerHashmap = Arc<scc::HashMap<ClientRequestId, mpsc::Sender<ListenerMessage>>>;
+type ListenerHashmap =
+    Arc<scc::HashMap<ClientRequestId, (mpsc::Sender<ListenerMessage>, ListenerId)>>;
 
 #[derive(Debug)]
 /// A low-level "raw" connection, that just handles bytes in, bytes out.
@@ -105,12 +108,12 @@ impl RawConnection {
                                 if !msg.1.eq(&Message::Pong(vec![72, 66])) {
                                     log::warn!("A message with no RequestId came around, but wasn't a heartbeat: {:?}", msg.1);
                                 }
-                            } else if let Some(tx) = listening_clone.get_async(&request_id).await {
+                            } else if let Some(entry) = listening_clone.get_async(&request_id).await {
                                 log::debug!("Listening {request_id:?}: got new message. Sending to manager");
                                 // if request got dropped, ignore result
                                 match msg.1 {
                                     Message::Unauth(UnauthRequest::ChatService(ChatServiceMessage::MlsMessage(timestamp, msg_bytes))) => {
-                                        let _ = tx.send((timestamp, msg_bytes)).await;
+                                        let _ = entry.0.send((timestamp, msg_bytes)).await;
                                     },
                                     Message::Ok => {
                                         // All good, send Ok to complete request

@@ -31,11 +31,8 @@ pub struct Connection {
 #[derive(Debug, Clone)]
 pub enum ConnectionServiceMessage {
     Request(MessageWire),
-    Listen(
-        ListenerId,
-        BlindedAddressPublic,
-        mpsc::Sender<ListenerMessage>,
-    ),
+    Listen(BlindedAddressPublic, mpsc::Sender<ListenerMessage>),
+    StopListen(ListenerId),
 }
 
 impl From<MessageWire> for ConnectionServiceMessage {
@@ -53,24 +50,33 @@ impl jenga::Service<ConnectionServiceMessage> for Connection {
             ConnectionServiceMessage::Request(message_wire) => {
                 self.inner.request(message_wire).await
             }
-            ConnectionServiceMessage::Listen(listener_id, blinded_address, tx) => {
+            ConnectionServiceMessage::Listen(blinded_address, tx) => {
                 let message_wire: MessageWire = Message::Unauth(UnauthRequest::ChatService(
-                    ChatServiceMessage::SubscribeToAddress(listener_id, blinded_address),
+                    ChatServiceMessage::SubscribeToAddress(blinded_address),
                 ))
                 .into();
 
                 let request_id = message_wire.0;
                 match self.inner.request(message_wire).await {
                     Ok(resp) => {
-                        if let Message::Ok = resp {
-                            let _ = self.listening.insert_async(request_id, tx).await;
-                            Ok(Message::Ok)
+                        if let Message::Unauth(UnauthRequest::ChatService(
+                            ChatServiceMessage::ListenStarted(listener_id),
+                        )) = resp
+                        {
+                            let _ = self
+                                .listening
+                                .insert_async(request_id, (tx, listener_id))
+                                .await;
+                            Ok(resp)
                         } else {
                             Err(TimeoutError::ServiceError(RequestError::UnexpectedAnswer))
                         }
                     }
                     Err(e) => Err(e),
                 }
+            }
+            ConnectionServiceMessage::StopListen(_listener_id) => {
+                todo!();
             }
         }
     }

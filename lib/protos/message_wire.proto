@@ -23,16 +23,15 @@ message ChatServiceMessage {
     }
 
     message StartListeningRequest {
-        bytes listener_id = 1;
-        BlindedAddressPublic blinded_address = 2;
+        BlindedAddressPublic blinded_address = 1;
     }
-
 
     message StopListening {
         bytes listener_id = 1;
     }
 
     oneof inner {
+        bytes listen_started = 1;
         GetMessageRequest retreive_queue = 2;
         StartListeningRequest subscribe_to_address = 3;
         StopListening stop_listening = 4;

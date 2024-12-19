@@ -264,10 +264,9 @@ impl From<super::ChatServiceMessage> for ChatServiceMessage {
                     },
                 )
             }
-            super::ChatServiceMessage::SubscribeToAddress(listener_id, blinded_addr) => {
+            super::ChatServiceMessage::SubscribeToAddress(blinded_addr) => {
                 chat_service_message::Inner::SubscribeToAddress(
                     chat_service_message::StartListeningRequest {
-                        listener_id: listener_id.to_vec(),
                         blinded_address: Some(blinded_addr.into()),
                     },
                 )
@@ -297,6 +296,9 @@ impl From<super::ChatServiceMessage> for ChatServiceMessage {
             super::ChatServiceMessage::Delivered(delivery_stamp) => {
                 chat_service_message::Inner::Delivered(delivery_stamp.to_vec())
             }
+            super::ChatServiceMessage::ListenStarted(listener_id) => {
+                chat_service_message::Inner::ListenStarted(listener_id.to_vec())
+            }
         });
         Self { inner }
     }
@@ -317,10 +319,9 @@ impl TryFrom<ChatServiceMessage> for super::ChatServiceMessage {
                         .map_err(|()| ProtoError)?,
                 })
             }
-            chat_service_message::Inner::SubscribeToAddress(req) => Self::SubscribeToAddress(
-                ListenerId::try_from(req.listener_id).map_err(|()| ProtoError)?,
-                req.blinded_address.ok_or(ProtoError)?.try_into()?,
-            ),
+            chat_service_message::Inner::SubscribeToAddress(req) => {
+                Self::SubscribeToAddress(req.blinded_address.ok_or(ProtoError)?.try_into()?)
+            }
             chat_service_message::Inner::MlsMessage(mls_message) => Self::MlsMessage(
                 mls_message
                     .delivery_id
@@ -341,6 +342,9 @@ impl TryFrom<ChatServiceMessage> for super::ChatServiceMessage {
             ),
             chat_service_message::Inner::Delivered(vec) => {
                 Self::Delivered(DeliveryStamp::try_from(vec.as_slice()).map_err(|()| ProtoError)?)
+            }
+            chat_service_message::Inner::ListenStarted(vec) => {
+                Self::ListenStarted(ListenerId::try_from(vec).map_err(|()| ProtoError)?)
             }
         })
     }

@@ -116,7 +116,8 @@ impl ConnectionService<ChatServiceMessage> for ChatService {
 
                 Ok(())
             }
-            ChatServiceMessage::SubscribeToAddress(listener_id, blinded_address) => {
+            ChatServiceMessage::SubscribeToAddress(blinded_address) => {
+                let listener_id = ListenerId::generate();
                 if add_listener(blinded_address, listener_id, request.clone())
                     .await
                     .is_ok()
@@ -126,7 +127,11 @@ impl ConnectionService<ChatServiceMessage> for ChatService {
                         "User began listening to {}...",
                         blinded_address
                     );
-                    request.message(Message::Ok).await?;
+                    request
+                        .message(Message::Unauth(UnauthRequest::ChatService(
+                            ChatServiceMessage::ListenStarted(listener_id),
+                        )))
+                        .await?;
                 } else {
                     request.error(ServiceError::InternalError).await?;
                 }

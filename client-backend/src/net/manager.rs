@@ -1,9 +1,12 @@
 use std::sync::Arc;
 
+use anyhow::bail;
 use jenga::Service;
 use lib::{
     api::{
-        connection::{AuthRequest, ListenerId, Message, MessageWire, UnauthRequest},
+        connection::{
+            AuthRequest, ChatServiceMessage, ListenerId, Message, MessageWire, UnauthRequest,
+        },
         server::Server,
     },
     crypto::blinded_address::BlindedAddressPublic,
@@ -73,22 +76,30 @@ impl WebsocketManager {
         blinded_address: BlindedAddressPublic,
         listener_tx: mpsc::Sender<ListenerMessage>,
     ) -> anyhow::Result<ListenerId> {
-        let listener_id = ListenerId::generate();
-        let msg = ConnectionServiceMessage::Listen(listener_id, blinded_address, listener_tx);
+        let msg = ConnectionServiceMessage::Listen(blinded_address, listener_tx);
 
-        if let Some(conn) = self.unauth_conns.get_async(server).await {
-            let _ = conn.get().request(msg).await?;
+        let req = if let Some(conn) = self.unauth_conns.get_async(server).await {
+            conn.get().request(msg).await?
         } else {
-            let ws = UnauthConnectionJenga::new(self.connector, url.clone()).await?;
+            let ws =
+                UnauthConnectionJenga::new(self.connector, server.ws_url_unauth().clone()).await?;
             let resp = ws.request(msg).await;
             let _ = self.unauth_conns.insert_async(server.clone(), ws).await;
-            let _ = resp?;
-        }
+
+            resp?
+        };
+
+        let Message::Unauth(UnauthRequest::ChatService(ChatServiceMessage::ListenStarted(
+            listener_id,
+        ))) = req
+        else {
+            bail!("Listen failed: {req:?}")
+        };
 
         Ok(listener_id)
     }
 
-    pub async fn stop_listen(&self, server: &Server, listen_id: ListenerId) {
-        todo!();
+    pub async fn stop_listen(&self, _server: &Server, _listen_id: ListenerId) {
+        todo!()
     }
 }

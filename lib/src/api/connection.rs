@@ -99,7 +99,8 @@ pub enum ChatServiceMessage {
     RetrieveQueue(GetMessagesRequest),
     /// Authentication payload for the user to start
     /// listening to a blinded address in real time.
-    SubscribeToAddress(ListenerId, BlindedAddressPublic),
+    SubscribeToAddress(BlindedAddressPublic),
+    ListenStarted(ListenerId),
     StopListening(ListenerId),
     MlsMessage(DeliveryStamp, Vec<u8>),
     /// Sent by the server after it is done sending the queues messages.
@@ -188,7 +189,7 @@ impl Default for ListenerId {
 
 impl ListenerId {
     pub fn generate() -> Self {
-        Self(generate_uuid())
+        Self(Uuid::now_v7())
     }
 
     pub fn to_vec(self) -> Vec<u8> {

@@ -233,7 +233,7 @@ impl LicksSignatureScheme {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ChatServiceMessage {
-    #[prost(oneof = "chat_service_message::Inner", tags = "2, 3, 4, 5, 6, 7, 8, 9")]
+    #[prost(oneof = "chat_service_message::Inner", tags = "1, 2, 3, 4, 5, 6, 7, 8, 9")]
     pub inner: ::core::option::Option<chat_service_message::Inner>,
 }
 /// Nested message and enum types in `ChatServiceMessage`.
@@ -263,9 +263,7 @@ pub mod chat_service_message {
     #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct StartListeningRequest {
-        #[prost(bytes = "vec", tag = "1")]
-        pub listener_id: ::prost::alloc::vec::Vec<u8>,
-        #[prost(message, optional, tag = "2")]
+        #[prost(message, optional, tag = "1")]
         pub blinded_address: ::core::option::Option<super::BlindedAddressPublic>,
     }
     #[allow(clippy::derive_partial_eq_without_eq)]
@@ -277,6 +275,8 @@ pub mod chat_service_message {
     #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Inner {
+        #[prost(bytes, tag = "1")]
+        ListenStarted(::prost::alloc::vec::Vec<u8>),
         #[prost(message, tag = "2")]
         RetreiveQueue(GetMessageRequest),
         #[prost(message, tag = "3")]
