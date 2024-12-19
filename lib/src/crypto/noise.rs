@@ -77,7 +77,7 @@ impl AsRef<[u8]> for NoiseMessageBuffer {
 }
 
 pub struct ClientHandshake {
-    buffer: NoiseMessageBuffer,
+    pub buffer: NoiseMessageBuffer,
     inner: snow::HandshakeState,
 }
 
@@ -130,10 +130,11 @@ impl ClientHandshake {
 }
 
 pub struct ServerHandshake {
-    buffer: NoiseMessageBuffer,
+    pub buffer: NoiseMessageBuffer,
     inner: snow::HandshakeState,
 }
 
+#[derive(Debug)]
 pub struct NoiseTransport {
     buffer: NoiseMessageBuffer,
     inner: snow::TransportState,

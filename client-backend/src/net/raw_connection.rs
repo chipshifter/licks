@@ -2,8 +2,9 @@
 use std::{sync::Arc, time::Duration};
 
 use futures_util::{Sink, SinkExt, Stream, StreamExt};
-use lib::api::connection::{
-    ChatServiceMessage, ClientRequestId, Message, MessageWire, UnauthRequest,
+use lib::{
+    api::connection::{ChatServiceMessage, ClientRequestId, Message, MessageWire, UnauthRequest},
+    crypto::noise::ClientHandshake,
 };
 use tokio::{
     sync::{mpsc, oneshot},
@@ -38,9 +39,9 @@ impl RawConnection {
         stream: S,
     ) -> Self {
         let (mut sender, mut receiver) = stream.split();
-        let (tx, mut rx) = mpsc::channel(16);
-        let cancellation_token = CancellationToken::new();
+        let (tx, mut rx) = mpsc::channel::<Vec<u8>>(16);
 
+        let cancellation_token = CancellationToken::new();
         let cancellation_token_clone = cancellation_token.clone();
 
         let requests: RequestHashmap = scc::HashMap::new().into();
@@ -48,12 +49,43 @@ impl RawConnection {
         let listening: ListenerHashmap = scc::HashMap::new().into();
         let listening_clone = listening.clone();
         tokio::task::spawn(async move {
+            // Encryption is done at the connection level, not at the request level,
+            // so it should be handled here
+
+            // Start encryption
+            let handshake = ClientHandshake::prepare_handshake().expect("todo");
+
+            if let Err(_) = sender.send(handshake.buffer.read().to_vec()).await {
+                panic!();
+            }
+
+            // Wait for server response
+            let server_response = receiver
+                .next()
+                .await
+                .expect("Server responds to Noise handshake");
+
+            let (mut transport, buffer) = handshake
+                .complete_handshake(&server_response)
+                .expect("Noise handshake succeeds");
+
+            // Send our final payload to server
+            if let Err(_) = sender.send(buffer.read().to_vec()).await {
+                panic!();
+            }
+
             loop {
                 tokio::select! {
                     // Received a request from ConnectionManager,
                     // send it to the stream
-                    Some(req) = rx.recv() => {
-                        if sender.send(req).await.is_err() {
+                    Some(unencrypted_req) = rx.recv() => {
+                        // Encrypt before sending
+                        let Ok(encrypted_request) = transport.write(&unencrypted_req) else {
+                            rx.close();
+                            return;
+                        };
+
+                        if sender.send(encrypted_request.to_vec()).await.is_err() {
                             log::error!("Connection unexpectedly closed when trying to send request message");
                             rx.close();
                             return;
@@ -61,7 +93,12 @@ impl RawConnection {
                     },
                     // Received a response from the connection
                     Some(bytes) = receiver.next() => {
-                        if let Ok(msg) = MessageWire::from_bytes(&bytes) {
+                        let Ok(decrypted_bytes) = transport.read(&bytes) else {
+                            rx.close();
+                            return;
+                        };
+
+                        if let Ok(msg) = MessageWire::from_bytes(decrypted_bytes) {
                             let request_id = msg.0;
                             if request_id.is_nil() {
                                 // Not a heartbeat?

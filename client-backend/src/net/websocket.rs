@@ -77,3 +77,43 @@ impl jenga::Service<Arc<Profile>> for WebsocketConnector {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use jenga::Service;
+    use lib::{api::server::Server, crypto::usernames::Username};
+
+    use crate::account::register;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn unauth_connection_works() {
+        let url = Server::localhost().ws_url_unauth();
+        let connector = WebsocketConnector;
+        let conn = connector.request(url).await.expect("Connection works");
+
+        assert!(conn.is_open());
+    }
+
+    #[tokio::test]
+    async fn auth_connection_works() {
+        let server = Server::localhost();
+        let profile = register::create_account(
+            &server,
+            Username::new("auth_conn".to_string())
+                .expect("valid username")
+                .hash(),
+        )
+        .await
+        .expect("registration works");
+
+        let connector = WebsocketConnector;
+        let conn = connector
+            .request(Arc::new(profile))
+            .await
+            .expect("Connection works");
+
+        assert!(conn.is_open());
+    }
+}

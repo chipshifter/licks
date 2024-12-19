@@ -41,7 +41,7 @@ pub enum RequestError {
 
 // Connection + jenga middlewares, notably Restart, which automatically restarts a connection
 // if a message fails to send.
- 
+
 type UnauthConnectionJenga<Connector> = jenga::restart::Restart<
     ConnectionServiceMessage,
     Message,
