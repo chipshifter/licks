@@ -4,8 +4,6 @@ use prost::Message as ProtoMessage;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-pub mod proto;
-
 use crate::{
     crypto::{
         blinded_address::BlindedAddressPublic,
@@ -20,7 +18,7 @@ use crate::{
 
 use super::{
     group::{DeliveryStamp, GetMessagesRequest, SendMessageRequest},
-    registration,
+    proto, registration,
 };
 
 /// The maximum hardcoded duration for which a connection to the server
@@ -123,7 +121,7 @@ impl ServiceMessage for ChatServiceMessage {}
 ///
 /// The server *should not* rely on [`RequestId`]'s uniqueness, because two
 /// different clients can reuse the same [`RequestId`].
-pub struct ClientRequestId(Uuid);
+pub struct ClientRequestId(pub(crate) Uuid);
 
 impl Default for ClientRequestId {
     fn default() -> Self {

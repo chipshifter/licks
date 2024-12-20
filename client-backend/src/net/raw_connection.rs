@@ -3,7 +3,7 @@ use std::{sync::Arc, time::Duration};
 
 use futures_util::{Sink, SinkExt, Stream, StreamExt};
 use lib::{
-    api::connection::{
+    api::messages::{
         ChatServiceMessage, ClientRequestId, ListenerId, Message, MessageWire, UnauthRequest,
     },
     crypto::{listener::ListenerToken, noise::ClientHandshake},

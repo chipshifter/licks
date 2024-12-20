@@ -18,7 +18,7 @@ use std::sync::Arc;
 
 use futures_util::{SinkExt, Stream, StreamExt};
 use lib::{
-    api::connection::{Message, MessageWire, MAX_CONNECTION_TIMEOUT_SECS},
+    api::messages::{Message, MessageWire, MAX_CONNECTION_TIMEOUT_SECS},
     crypto::challenge::AuthChallenge,
 };
 use tokio::{sync::mpsc, time::timeout};

@@ -1,4 +1,4 @@
-use crate::{api::connection::proto, error::ProtoError, util::uuid::generate_uuid};
+use crate::{api::proto, error::ProtoError, util::uuid::generate_uuid};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 

@@ -2,7 +2,7 @@ use std::{sync::LazyLock, time::SystemTime};
 
 use lib::{
     api::{
-        connection::{Message, ServiceError, ServiceResult, UnauthRequest},
+        messages::{Message, ServiceError, ServiceResult, UnauthRequest},
         registration::{self, Stage1Message, Stage3Message},
     },
     crypto::certificates::{Certificate, CertificateChain, SerializedAccountCertificate},

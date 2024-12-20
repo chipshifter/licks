@@ -26,11 +26,9 @@ use mls_rs::{
 
 use lib::{
     api::{
-        connection::{
-            proto::{self, ApplicationMessage, ProstMessage},
-            ChatServiceMessage, Message, UnauthRequest,
-        },
         group::SendMessageRequest,
+        messages::{ChatServiceMessage, Message, UnauthRequest},
+        proto::{self, ApplicationMessage, ProstMessage},
     },
     crypto::blinded_address::{BlindedAddressPublic, BlindedAddressSecret},
     identifiers::{AccountId, GroupIdentifier, LicksIdentifier},

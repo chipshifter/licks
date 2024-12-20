@@ -4,7 +4,7 @@ use anyhow::bail;
 use jenga::Service;
 use lib::{
     api::{
-        connection::{
+        messages::{
             AuthRequest, ChatServiceMessage, ListenerId, Message, MessageWire, UnauthRequest,
         },
         server::Server,

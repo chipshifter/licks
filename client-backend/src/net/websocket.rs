@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use futures_util::{SinkExt, StreamExt};
-use lib::api::connection::Message;
-use lib::api::connection::MessageWire;
+use lib::api::messages::Message;
+use lib::api::messages::MessageWire;
 use tokio_tungstenite::{connect_async, tungstenite::Message as TungsteniteMessage};
 
 use crate::manager::account::Profile;

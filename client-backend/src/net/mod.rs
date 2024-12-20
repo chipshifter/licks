@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use connection::{Connection, ConnectionServiceMessage};
 use jenga::timeout::TimeoutError;
-use lib::api::connection::Message;
+use lib::api::messages::Message;
 
 use crate::manager::account::Profile;
 

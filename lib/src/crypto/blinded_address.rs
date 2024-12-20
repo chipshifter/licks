@@ -27,7 +27,7 @@ use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use signature::SignerMut;
 
-use crate::{api::connection::proto, error::ProtoError};
+use crate::{api::proto, error::ProtoError};
 
 #[derive(thiserror::Error, Debug, PartialEq)]
 #[error("The blinded address verification failed")]

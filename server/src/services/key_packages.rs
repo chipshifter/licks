@@ -1,6 +1,6 @@
 use bloomfilter::Bloom;
 use lib::{
-    api::connection::{AuthRequest, Message, ServiceResult, UnauthRequest},
+    api::messages::{AuthRequest, Message, ServiceResult, UnauthRequest},
     identifiers::{AccountId, LicksIdentifier},
 };
 use serde::{Deserialize, Serialize};

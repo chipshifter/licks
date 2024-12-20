@@ -2,7 +2,7 @@ use std::sync::LazyLock;
 
 use crate::db::DB;
 use lib::{
-    api::connection::{AuthRequest, Message, ServiceError, ServiceResult, UnauthRequest},
+    api::messages::{AuthRequest, Message, ServiceError, ServiceResult, UnauthRequest},
     crypto::usernames::UsernameHash,
     identifiers::{AccountId, LicksIdentifier},
 };

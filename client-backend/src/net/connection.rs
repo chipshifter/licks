@@ -3,7 +3,7 @@ use std::ops::Deref;
 
 use jenga::{timeout::TimeoutError, Middleware};
 use lib::{
-    api::connection::{
+    api::messages::{
         ChatServiceMessage, ListenerId, Message, MessageWire, UnauthRequest,
         MIN_REQUEST_TIMEOUT_SECS,
     },

@@ -3,7 +3,7 @@ use std::hash::Hash;
 use anyhow::bail;
 use lib::{
     api::{
-        connection::{Message, UnauthRequest},
+        messages::{Message, UnauthRequest},
         server::Server,
     },
     crypto::{

@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::{api::connection::proto, error::ProtoError};
+use crate::{api::proto, error::ProtoError};
 
 use super::{
     certificates::{CertificateChain, CertificateChainSecret, CertificateError, SerializedChain},

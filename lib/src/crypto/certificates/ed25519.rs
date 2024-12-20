@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, hash::Hash};
 
 use crate::{
-    api::{connection::proto, server::Server},
+    api::{proto, server::Server},
     crypto::rng::get_rng,
     error::ProtoError,
     identifiers::{AccountId, DeviceId, LicksIdentifier},

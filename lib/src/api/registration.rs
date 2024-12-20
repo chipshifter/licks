@@ -29,9 +29,9 @@ use crate::{
     identifiers::AccountId,
 };
 
-use super::connection::{
+use super::{
+    messages::ServiceMessage,
     proto::{self},
-    ServiceMessage,
 };
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

@@ -2,11 +2,11 @@ use std::sync::LazyLock;
 
 use lib::{
     api::{
-        connection::{
+        group::{DeliveryStamp, SendMessageRequest},
+        messages::{
             ChatServiceMessage::{self, MlsMessage, QueueDone, QueueEmpty},
             ListenerId, Message, ServiceError, ServiceResult, UnauthRequest,
         },
-        group::{DeliveryStamp, SendMessageRequest},
     },
     crypto::{
         blinded_address::{BlindedAddressPublic, BLINDED_ADDRESS_PUBLIC_LENGTH},
@@ -223,8 +223,8 @@ impl ChatService {
 mod tests {
     use lib::{
         api::{
-            connection::{ClientRequestId, MessageWire},
             group::GetMessagesRequest,
+            messages::{ClientRequestId, MessageWire},
         },
         crypto::{blinded_address::BlindedAddressSecret, rng::random_bytes},
     };
@@ -331,7 +331,7 @@ mod tests {
         };
 
         let (sender, mut receiver) = mpsc::unbounded_channel();
-        let request_id = ClientRequestId::generate();
+        let request_id = ClientRequestId::default();
         let mut request_handler = Request::make(sender, request_id, &Span::none());
 
         ChatService::handle_request(
@@ -395,7 +395,7 @@ mod tests {
         };
 
         let (sender, mut receiver) = mpsc::unbounded_channel();
-        let request_id = ClientRequestId::generate();
+        let request_id = ClientRequestId::default();
         let mut request_handler = Request::make(sender, request_id, &Span::none());
 
         ChatService::handle_request(

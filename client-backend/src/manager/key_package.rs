@@ -1,6 +1,6 @@
 use anyhow::Result;
 
-use lib::api::connection::AuthRequest;
+use lib::api::messages::AuthRequest;
 use mls_rs::mls_rs_codec::MlsEncode;
 
 use super::{ProfileManager, WEBSOCKET_MANAGER};

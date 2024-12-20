@@ -2,8 +2,8 @@ use uuid::Uuid;
 
 use crate::{
     api::{
-        connection::{Message, MessageWire},
         group::DeliveryStamp,
+        messages::{Message, MessageWire},
     },
     crypto::{
         listener::{ListenerCommitment, ListenerToken},
@@ -12,13 +12,13 @@ use crate::{
     error::ProtoError,
 };
 
-use super::{ClientRequestId, ListenerId, ServiceError};
+use crate::api::messages::{ClientRequestId, ListenerId, ServiceError};
 
 pub use prost::Message as ProstMessage;
 
 #[allow(warnings)]
 mod wire {
-    include!("../../generated/wire.rs");
+    include!("../generated/wire.rs");
 }
 
 pub use wire::*;
@@ -65,27 +65,27 @@ impl From<Message> for licks_message_wire::LicksMessageBody {
     }
 }
 
-impl From<super::AuthRequest> for AuthenticatedChannelMessage {
-    fn from(value: super::AuthRequest) -> Self {
+impl From<crate::api::messages::AuthRequest> for AuthenticatedChannelMessage {
+    fn from(value: crate::api::messages::AuthRequest) -> Self {
         let inner = match value {
-            super::AuthRequest::SetUsername(username) => {
+            crate::api::messages::AuthRequest::SetUsername(username) => {
                 authenticated_channel_message::Inner::SetUsername(username.as_ref().into())
             }
-            super::AuthRequest::RemoveUsername(username) => {
+            crate::api::messages::AuthRequest::RemoveUsername(username) => {
                 authenticated_channel_message::Inner::RemoveUsername(username.as_ref().into())
             }
-            super::AuthRequest::UsernameIsAlreadyYours => {
+            crate::api::messages::AuthRequest::UsernameIsAlreadyYours => {
                 authenticated_channel_message::Inner::UsernameIsAlreadyYours(Empty {})
             }
-            super::AuthRequest::UsernameIsAlreadyTaken => {
+            crate::api::messages::AuthRequest::UsernameIsAlreadyTaken => {
                 authenticated_channel_message::Inner::UsernameIsAlreadyTaken(Empty {})
             }
-            super::AuthRequest::UploadKeyPackages(keypackage) => {
+            crate::api::messages::AuthRequest::UploadKeyPackages(keypackage) => {
                 authenticated_channel_message::Inner::UploadKeyPackages(KeyPackages {
                     inner: keypackage,
                 })
             }
-            super::AuthRequest::KeyPackageAlreadyUploaded => {
+            crate::api::messages::AuthRequest::KeyPackageAlreadyUploaded => {
                 authenticated_channel_message::Inner::KeyPackageAlreadyUploaded(Empty {})
             }
         };
@@ -93,7 +93,7 @@ impl From<super::AuthRequest> for AuthenticatedChannelMessage {
     }
 }
 
-impl TryFrom<AuthenticatedChannelMessage> for super::AuthRequest {
+impl TryFrom<AuthenticatedChannelMessage> for crate::api::messages::AuthRequest {
     type Error = ProtoError;
 
     fn try_from(value: AuthenticatedChannelMessage) -> Result<Self, Self::Error> {
@@ -120,33 +120,33 @@ impl TryFrom<AuthenticatedChannelMessage> for super::AuthRequest {
     }
 }
 
-impl From<super::UnauthRequest> for UnauthenticatedChannelMessage {
-    fn from(value: super::UnauthRequest) -> Self {
+impl From<crate::api::messages::UnauthRequest> for UnauthenticatedChannelMessage {
+    fn from(value: crate::api::messages::UnauthRequest) -> Self {
         let inner = match value {
-            super::UnauthRequest::Registration(registration) => {
+            crate::api::messages::UnauthRequest::Registration(registration) => {
                 unauthenticated_channel_message::Inner::Registration(registration.into())
             }
-            super::UnauthRequest::GetKeyPackage(acc_id) => {
+            crate::api::messages::UnauthRequest::GetKeyPackage(acc_id) => {
                 unauthenticated_channel_message::Inner::GetKeyPackage(acc_id.into())
             }
-            super::UnauthRequest::HereIsKeyPackage(keypackage) => {
+            crate::api::messages::UnauthRequest::HereIsKeyPackage(keypackage) => {
                 unauthenticated_channel_message::Inner::HereIsKeyPackage(keypackage)
             }
-            super::UnauthRequest::NoKeyPackage => {
+            crate::api::messages::UnauthRequest::NoKeyPackage => {
                 unauthenticated_channel_message::Inner::NoKeyPackage(Empty {})
             }
-            super::UnauthRequest::GetAccountFromUsername(username) => {
+            crate::api::messages::UnauthRequest::GetAccountFromUsername(username) => {
                 unauthenticated_channel_message::Inner::GetAccountFromUsername(
                     username.as_ref().into(),
                 )
             }
-            super::UnauthRequest::HereIsAccount(acc_id) => {
+            crate::api::messages::UnauthRequest::HereIsAccount(acc_id) => {
                 unauthenticated_channel_message::Inner::HereIsAccount(acc_id.into())
             }
-            super::UnauthRequest::NoAccount => {
+            crate::api::messages::UnauthRequest::NoAccount => {
                 unauthenticated_channel_message::Inner::NoAccount(Empty {})
             }
-            super::UnauthRequest::ChatService(msg) => {
+            crate::api::messages::UnauthRequest::ChatService(msg) => {
                 unauthenticated_channel_message::Inner::ChatService(msg.into())
             }
         };
@@ -154,7 +154,7 @@ impl From<super::UnauthRequest> for UnauthenticatedChannelMessage {
     }
 }
 
-impl TryFrom<UnauthenticatedChannelMessage> for super::UnauthRequest {
+impl TryFrom<UnauthenticatedChannelMessage> for crate::api::messages::UnauthRequest {
     type Error = ProtoError;
 
     fn try_from(value: UnauthenticatedChannelMessage) -> Result<Self, Self::Error> {
@@ -256,10 +256,10 @@ impl TryFrom<licks_message_wire::LicksMessageBody> for Message {
     }
 }
 
-impl From<super::ChatServiceMessage> for ChatServiceMessage {
-    fn from(value: super::ChatServiceMessage) -> Self {
+impl From<crate::api::messages::ChatServiceMessage> for ChatServiceMessage {
+    fn from(value: crate::api::messages::ChatServiceMessage) -> Self {
         let inner = Some(match value {
-            super::ChatServiceMessage::RetrieveQueue(request) => {
+            crate::api::messages::ChatServiceMessage::RetrieveQueue(request) => {
                 chat_service_message::Inner::RetreiveQueue(
                     chat_service_message::GetMessageRequest {
                         blinded_address: Some(request.blinded_address.into()),
@@ -267,41 +267,43 @@ impl From<super::ChatServiceMessage> for ChatServiceMessage {
                     },
                 )
             }
-            super::ChatServiceMessage::SubscribeToAddress(commitment, blinded_addr) => {
-                chat_service_message::Inner::SubscribeToAddress(
-                    chat_service_message::StartListeningRequest {
-                        listener_commitment: commitment.into(),
-                        blinded_address: Some(blinded_addr.into()),
-                    },
-                )
-            }
-            super::ChatServiceMessage::MlsMessage(delivery_id, bytes) => {
+            crate::api::messages::ChatServiceMessage::SubscribeToAddress(
+                commitment,
+                blinded_addr,
+            ) => chat_service_message::Inner::SubscribeToAddress(
+                chat_service_message::StartListeningRequest {
+                    listener_commitment: commitment.into(),
+                    blinded_address: Some(blinded_addr.into()),
+                },
+            ),
+            crate::api::messages::ChatServiceMessage::MlsMessage(delivery_id, bytes) => {
                 chat_service_message::Inner::MlsMessage(chat_service_message::MlsMessage {
                     delivery_id: delivery_id.to_vec(),
                     body: bytes,
                 })
             }
-            super::ChatServiceMessage::QueueDone(count) => {
+            crate::api::messages::ChatServiceMessage::QueueDone(count) => {
                 chat_service_message::Inner::QueueDone(count)
             }
-            super::ChatServiceMessage::QueueEmpty => {
+            crate::api::messages::ChatServiceMessage::QueueEmpty => {
                 chat_service_message::Inner::QueueEmpty(Empty {})
             }
-            super::ChatServiceMessage::SendMessage(send_message) => {
+            crate::api::messages::ChatServiceMessage::SendMessage(send_message) => {
                 chat_service_message::Inner::SendMessage(chat_service_message::SendMessageRequest {
                     proof: Some(send_message.blinded_address_proof.into()),
                 })
             }
-            super::ChatServiceMessage::StopListening(listener_id, listener_token) => {
-                chat_service_message::Inner::StopListening(chat_service_message::StopListening {
-                    listener_id: listener_id.to_vec(),
-                    listener_token: listener_token.into(),
-                })
-            }
-            super::ChatServiceMessage::Delivered(delivery_stamp) => {
+            crate::api::messages::ChatServiceMessage::StopListening(
+                listener_id,
+                listener_token,
+            ) => chat_service_message::Inner::StopListening(chat_service_message::StopListening {
+                listener_id: listener_id.to_vec(),
+                listener_token: listener_token.into(),
+            }),
+            crate::api::messages::ChatServiceMessage::Delivered(delivery_stamp) => {
                 chat_service_message::Inner::Delivered(delivery_stamp.to_vec())
             }
-            super::ChatServiceMessage::ListenStarted(listener_id) => {
+            crate::api::messages::ChatServiceMessage::ListenStarted(listener_id) => {
                 chat_service_message::Inner::ListenStarted(listener_id.to_vec())
             }
         });
@@ -309,7 +311,7 @@ impl From<super::ChatServiceMessage> for ChatServiceMessage {
     }
 }
 
-impl TryFrom<ChatServiceMessage> for super::ChatServiceMessage {
+impl TryFrom<ChatServiceMessage> for crate::api::messages::ChatServiceMessage {
     type Error = ProtoError;
 
     fn try_from(value: ChatServiceMessage) -> Result<Self, Self::Error> {

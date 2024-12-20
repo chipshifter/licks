@@ -9,7 +9,7 @@ use tokio::{
 };
 
 use lib::{
-    api::{connection::ListenerId, group::DeliveryStamp},
+    api::{group::DeliveryStamp, messages::ListenerId},
     crypto::blinded_address::BlindedAddressPublic,
     identifiers::GroupIdentifier,
 };

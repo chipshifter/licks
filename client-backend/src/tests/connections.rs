@@ -2,7 +2,7 @@ use std::{convert::Infallible, pin::Pin, task::Poll};
 
 use futures_util::{Sink, Stream};
 use lib::{
-    api::connection::{Message, MessageWire, ServiceError},
+    api::messages::{Message, MessageWire, ServiceError},
     crypto::challenge::AuthChallenge,
 };
 

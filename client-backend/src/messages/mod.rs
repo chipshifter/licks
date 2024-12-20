@@ -1,6 +1,9 @@
-use lib::api::connection::proto::ProstMessage;
 use lib::{
-    api::{connection::proto, group::DeliveryStamp, server::Server},
+    api::{
+        group::DeliveryStamp,
+        server::Server,
+        {proto, proto::ProstMessage},
+    },
     error::ProtoError,
     identifiers::AccountId,
 };

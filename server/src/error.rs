@@ -1,4 +1,4 @@
-use lib::api::connection::ServiceError;
+use lib::api::messages::ServiceError;
 use sled::transaction::TransactionError;
 
 use crate::{authenticator::AuthenticationError, services::register::RegistrationError};

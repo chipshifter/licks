@@ -8,7 +8,7 @@ use crate::{
     },
 };
 use lib::{
-    api::connection::{
+    api::messages::{
         AuthRequest, ClientRequestId, Message, MessageWire, ServiceError as SocketError,
         ServiceMessage, ServiceResult, UnauthRequest,
     },

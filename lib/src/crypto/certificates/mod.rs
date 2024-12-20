@@ -12,7 +12,7 @@ use prost::Message;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    api::{connection::proto, server::Server},
+    api::{proto, server::Server},
     error::ProtoError,
     identifiers::{AccountId, DeviceId},
 };

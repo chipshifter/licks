@@ -3,7 +3,7 @@ use std::sync::{
     Arc,
 };
 
-use lib::{api::connection::MessageWire, crypto::noise::ServerHandshake};
+use lib::{api::messages::MessageWire, crypto::noise::ServerHandshake};
 use std::sync::Mutex;
 use tracing::{instrument, span, Instrument, Level};
 

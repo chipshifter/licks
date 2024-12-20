@@ -2,7 +2,7 @@ use crate::manager::{account::Profile, WEBSOCKET_MANAGER};
 use anyhow::{bail, Context, Result};
 use lib::{
     api::{
-        connection::{Message, UnauthRequest},
+        messages::{Message, UnauthRequest},
         registration::{RegistrationService, Stage1Message, Stage3Message},
         server::Server,
     },
