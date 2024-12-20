@@ -312,8 +312,11 @@ impl Listener {
     }
 
     /// Returns Err if the connection failed, or if the epoch wasn't being listened to.
-    async fn stop_listening(&self, _listener_id: ListenerId) -> Result<(), ()> {
-        Err(())
+    async fn stop_listening(&self, listener_id: ListenerId) -> Result<(), ()> {
+        Ok(WEBSOCKET_MANAGER
+            .stop_listen(self.key.0.get_server(), listener_id)
+            .await
+            .map_err(|_| ())?)
     }
 
     /// 1) Handle message

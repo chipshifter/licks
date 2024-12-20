@@ -8,7 +8,10 @@ use lib::{
         },
         group::{DeliveryStamp, SendMessageRequest},
     },
-    crypto::blinded_address::{BlindedAddressPublic, BLINDED_ADDRESS_PUBLIC_LENGTH},
+    crypto::{
+        blinded_address::{BlindedAddressPublic, BLINDED_ADDRESS_PUBLIC_LENGTH},
+        listener::ListenerCommitment,
+    },
 };
 use scc::ebr::Guard;
 use sled::Tree;
@@ -32,13 +35,14 @@ static BROADCASTERS: LazyLock<
 
 /// Keep track of the [`RequestId`] and their task abort handle. If a request
 /// decides to stop listening, then we call the abort handle.
-static LISTENERS: LazyLock<scc::HashMap<ListenerId, AbortHandle>> =
+static LISTENERS: LazyLock<scc::HashMap<ListenerId, (ListenerCommitment, AbortHandle)>> =
     LazyLock::new(scc::HashMap::default);
 
 /// Add a connection into the listeners of a `BlindedAddress`.
 pub async fn add_listener(
     blinded_address: BlindedAddressPublic,
     listener_id: ListenerId,
+    listener_commitment: ListenerCommitment,
     mut request: impl RequestHandler,
 ) -> Result<(), ()> {
     let mut rx = BROADCASTERS
@@ -63,8 +67,8 @@ pub async fn add_listener(
         }
     });
 
-    if let Err((_, old_handler)) = LISTENERS
-        .insert_async(listener_id, handle.abort_handle())
+    if let Err((_, (_, old_handler))) = LISTENERS
+        .insert_async(listener_id, (listener_commitment, handle.abort_handle()))
         .await
     {
         // Task already existed, abort old one.
@@ -116,11 +120,16 @@ impl ConnectionService<ChatServiceMessage> for ChatService {
 
                 Ok(())
             }
-            ChatServiceMessage::SubscribeToAddress(blinded_address) => {
+            ChatServiceMessage::SubscribeToAddress(listener_commitment, blinded_address) => {
                 let listener_id = ListenerId::generate();
-                if add_listener(blinded_address, listener_id, request.clone())
-                    .await
-                    .is_ok()
+                if add_listener(
+                    blinded_address,
+                    listener_id,
+                    listener_commitment,
+                    request.clone(),
+                )
+                .await
+                .is_ok()
                 {
                     tracing::event!(
                         Level::INFO,
@@ -143,9 +152,26 @@ impl ConnectionService<ChatServiceMessage> for ChatService {
                     .map_service_result(ChatService::send_message, req)
                     .await
             }
-            ChatServiceMessage::StopListening(req_id) => {
-                Self::remove_listener_if_exists(&req_id);
-                request.message(Message::Ok).await
+            ChatServiceMessage::StopListening(listener_id, listener_token) => {
+                if let Some((_, entry)) = LISTENERS
+                    .remove_if_async(&listener_id, |entry| {
+                        if listener_token.validate_commitment(entry.0) {
+                            true
+                        } else {
+                            false
+                        }
+                    })
+                    .await
+                {
+                    if listener_token.validate_commitment(entry.0) {
+                        entry.1.abort();
+                        request.message(Message::Ok).await
+                    } else {
+                        request.error(ServiceError::InvalidCredentials).await
+                    }
+                } else {
+                    request.error(ServiceError::InvalidRequest).await
+                }
             }
             _ => request.error(ServiceError::InvalidOperation).await,
         }
@@ -198,13 +224,6 @@ impl ChatService {
         bytes[..6].copy_from_slice(b"queue/");
         bytes[6..].copy_from_slice(&blinded_address.0);
         Ok(DB.open_tree(bytes)?)
-    }
-
-    pub fn remove_listener_if_exists(listener_id: &ListenerId) {
-        if let Some((_, join_handle)) = LISTENERS.remove(listener_id) {
-            tracing::debug!("Removing Listener for {listener_id:?}");
-            join_handle.abort();
-        }
     }
 }
 

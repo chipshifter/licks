@@ -6,7 +6,7 @@ use lib::{
     api::connection::{
         ChatServiceMessage, ClientRequestId, ListenerId, Message, MessageWire, UnauthRequest,
     },
-    crypto::noise::ClientHandshake,
+    crypto::{listener::ListenerToken, noise::ClientHandshake},
 };
 use tokio::{
     sync::{mpsc, oneshot},
@@ -21,7 +21,8 @@ use super::RequestError;
 
 type RequestHashmap = Arc<scc::HashMap<ClientRequestId, oneshot::Sender<Message>>>;
 type ListenerHashmap =
-    Arc<scc::HashMap<ClientRequestId, (mpsc::Sender<ListenerMessage>, ListenerId)>>;
+    Arc<scc::HashMap<ClientRequestId, (mpsc::Sender<ListenerMessage>, ListenerToken)>>;
+type ListenerIdsHashmap = Arc<scc::HashMap<ListenerId, ClientRequestId>>;
 
 #[derive(Debug)]
 /// A low-level "raw" connection, that just handles bytes in, bytes out.
@@ -29,9 +30,7 @@ type ListenerHashmap =
 /// to what server it is connected.
 pub struct RawConnection {
     pub request_sender: mpsc::Sender<Vec<u8>>,
-    // We keep track of mpsc channels per-connection that are "listening" to incoming
-    // messages. When the connection receives such a message, it gets send to the mpsc
-    // sender.
+    pub listener_ids: ListenerIdsHashmap,
     pub listening: ListenerHashmap,
     pub requests: RequestHashmap,
     pub cancellation_token: CancellationToken,
@@ -49,8 +48,10 @@ impl RawConnection {
 
         let requests: RequestHashmap = scc::HashMap::new().into();
         let requests_clone: RequestHashmap = requests.clone();
+
         let listening: ListenerHashmap = scc::HashMap::new().into();
         let listening_clone = listening.clone();
+
         tokio::task::spawn(async move {
             // Encryption is done at the connection level, not at the request level,
             // so it should be handled here
@@ -160,15 +161,10 @@ impl RawConnection {
         Self {
             request_sender: tx,
             listening,
+            listener_ids: scc::HashMap::new().into(),
             requests,
             cancellation_token,
         }
-    }
-
-    /// Tell the connection to stop listening for the given [`RequestId`]
-    // todo: use it
-    pub(crate) async fn stop_listen(&self, request_id: &ClientRequestId) {
-        self.listening.remove_async(request_id).await;
     }
 
     pub fn is_open(&self) -> bool {

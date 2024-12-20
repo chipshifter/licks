@@ -10,6 +10,7 @@ use crate::{
     crypto::{
         blinded_address::BlindedAddressPublic,
         challenge::{AuthChallenge, AuthChallengeResponse},
+        listener::{ListenerCommitment, ListenerToken},
         usernames::UsernameHash,
     },
     error::ProtoError,
@@ -99,9 +100,9 @@ pub enum ChatServiceMessage {
     RetrieveQueue(GetMessagesRequest),
     /// Authentication payload for the user to start
     /// listening to a blinded address in real time.
-    SubscribeToAddress(BlindedAddressPublic),
+    SubscribeToAddress(ListenerCommitment, BlindedAddressPublic),
     ListenStarted(ListenerId),
-    StopListening(ListenerId),
+    StopListening(ListenerId, ListenerToken),
     MlsMessage(DeliveryStamp, Vec<u8>),
     /// Sent by the server after it is done sending the queues messages.
     /// Contains the number of messages we sent after sending the queue

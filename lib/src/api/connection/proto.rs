@@ -5,7 +5,10 @@ use crate::{
         connection::{Message, MessageWire},
         group::DeliveryStamp,
     },
-    crypto::usernames::UsernameHash,
+    crypto::{
+        listener::{ListenerCommitment, ListenerToken},
+        usernames::UsernameHash,
+    },
     error::ProtoError,
 };
 
@@ -264,9 +267,10 @@ impl From<super::ChatServiceMessage> for ChatServiceMessage {
                     },
                 )
             }
-            super::ChatServiceMessage::SubscribeToAddress(blinded_addr) => {
+            super::ChatServiceMessage::SubscribeToAddress(commitment, blinded_addr) => {
                 chat_service_message::Inner::SubscribeToAddress(
                     chat_service_message::StartListeningRequest {
+                        listener_commitment: commitment.into(),
                         blinded_address: Some(blinded_addr.into()),
                     },
                 )
@@ -288,9 +292,10 @@ impl From<super::ChatServiceMessage> for ChatServiceMessage {
                     proof: Some(send_message.blinded_address_proof.into()),
                 })
             }
-            super::ChatServiceMessage::StopListening(listener_id) => {
+            super::ChatServiceMessage::StopListening(listener_id, listener_token) => {
                 chat_service_message::Inner::StopListening(chat_service_message::StopListening {
                     listener_id: listener_id.to_vec(),
+                    listener_token: listener_token.into(),
                 })
             }
             super::ChatServiceMessage::Delivered(delivery_stamp) => {
@@ -319,9 +324,10 @@ impl TryFrom<ChatServiceMessage> for super::ChatServiceMessage {
                         .map_err(|()| ProtoError)?,
                 })
             }
-            chat_service_message::Inner::SubscribeToAddress(req) => {
-                Self::SubscribeToAddress(req.blinded_address.ok_or(ProtoError)?.try_into()?)
-            }
+            chat_service_message::Inner::SubscribeToAddress(req) => Self::SubscribeToAddress(
+                ListenerCommitment::try_from(req.listener_commitment).map_err(|()| ProtoError)?,
+                req.blinded_address.ok_or(ProtoError)?.try_into()?,
+            ),
             chat_service_message::Inner::MlsMessage(mls_message) => Self::MlsMessage(
                 mls_message
                     .delivery_id
@@ -339,6 +345,7 @@ impl TryFrom<ChatServiceMessage> for super::ChatServiceMessage {
             }
             chat_service_message::Inner::StopListening(stop_listening) => Self::StopListening(
                 ListenerId::try_from(stop_listening.listener_id).map_err(|()| ProtoError)?,
+                ListenerToken::try_from(stop_listening.listener_token).map_err(|()| ProtoError)?,
             ),
             chat_service_message::Inner::Delivered(vec) => {
                 Self::Delivered(DeliveryStamp::try_from(vec.as_slice()).map_err(|()| ProtoError)?)

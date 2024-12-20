@@ -24,10 +24,12 @@ message ChatServiceMessage {
 
     message StartListeningRequest {
         BlindedAddressPublic blinded_address = 1;
+        bytes listener_commitment = 2;
     }
 
     message StopListening {
         bytes listener_id = 1;
+        bytes listener_token = 2;
     }
 
     oneof inner {

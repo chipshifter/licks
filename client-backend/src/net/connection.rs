@@ -7,7 +7,7 @@ use lib::{
         ChatServiceMessage, ListenerId, Message, MessageWire, UnauthRequest,
         MIN_REQUEST_TIMEOUT_SECS,
     },
-    crypto::blinded_address::BlindedAddressPublic,
+    crypto::{blinded_address::BlindedAddressPublic, listener::ListenerToken},
 };
 use tokio::sync::mpsc;
 
@@ -51,8 +51,13 @@ impl jenga::Service<ConnectionServiceMessage> for Connection {
                 self.inner.request(message_wire).await
             }
             ConnectionServiceMessage::Listen(blinded_address, tx) => {
+                let listener_token = ListenerToken::default();
+
                 let message_wire: MessageWire = Message::Unauth(UnauthRequest::ChatService(
-                    ChatServiceMessage::SubscribeToAddress(blinded_address),
+                    ChatServiceMessage::SubscribeToAddress(
+                        listener_token.commitment(),
+                        blinded_address,
+                    ),
                 ))
                 .into();
 
@@ -64,8 +69,13 @@ impl jenga::Service<ConnectionServiceMessage> for Connection {
                         )) = resp
                         {
                             let _ = self
+                                .listener_ids
+                                .insert_async(listener_id, request_id)
+                                .await;
+
+                            let _ = self
                                 .listening
-                                .insert_async(request_id, (tx, listener_id))
+                                .insert_async(request_id, (tx, listener_token))
                                 .await;
                             Ok(resp)
                         } else {
@@ -75,8 +85,28 @@ impl jenga::Service<ConnectionServiceMessage> for Connection {
                     Err(e) => Err(e),
                 }
             }
-            ConnectionServiceMessage::StopListen(_listener_id) => {
-                todo!();
+            ConnectionServiceMessage::StopListen(listener_id) => {
+                let Some((_, request_id)) = self.listener_ids.remove_async(&listener_id).await
+                else {
+                    // No listener found internally, we assume there was nothing to begin with and return Ok
+                    return Ok(Message::Ok);
+                };
+
+                let Some((_, entry)) = self.listening.remove_async(&request_id).await else {
+                    // Same as above
+                    return Ok(Message::Ok);
+                };
+
+                // This will close when dropped
+                let _tx = entry.0;
+                let listener_token = entry.1;
+
+                let message_wire: MessageWire = Message::Unauth(UnauthRequest::ChatService(
+                    ChatServiceMessage::StopListening(listener_id, listener_token),
+                ))
+                .into();
+
+                self.inner.request(message_wire).await
             }
         }
     }

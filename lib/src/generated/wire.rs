@@ -265,12 +265,16 @@ pub mod chat_service_message {
     pub struct StartListeningRequest {
         #[prost(message, optional, tag = "1")]
         pub blinded_address: ::core::option::Option<super::BlindedAddressPublic>,
+        #[prost(bytes = "vec", tag = "2")]
+        pub listener_commitment: ::prost::alloc::vec::Vec<u8>,
     }
     #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct StopListening {
         #[prost(bytes = "vec", tag = "1")]
         pub listener_id: ::prost::alloc::vec::Vec<u8>,
+        #[prost(bytes = "vec", tag = "2")]
+        pub listener_token: ::prost::alloc::vec::Vec<u8>,
     }
     #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Oneof)]

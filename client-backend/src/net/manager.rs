@@ -99,7 +99,23 @@ impl WebsocketManager {
         Ok(listener_id)
     }
 
-    pub async fn stop_listen(&self, _server: &Server, _listen_id: ListenerId) {
-        todo!()
+    pub async fn stop_listen(
+        &self,
+        server: &Server,
+        listener_id: ListenerId,
+    ) -> anyhow::Result<()> {
+        let msg = ConnectionServiceMessage::StopListen(listener_id);
+
+        if let Some(conn) = self.unauth_conns.get_async(server).await {
+            conn.get().request(msg).await?;
+        } else {
+            let ws =
+                UnauthConnectionJenga::new(self.connector, server.ws_url_unauth().clone()).await?;
+
+            let _resp = ws.request(msg).await?;
+            let _ = self.unauth_conns.insert_async(server.clone(), ws).await;
+        };
+
+        Ok(())
     }
 }
