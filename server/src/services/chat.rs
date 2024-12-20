@@ -155,20 +155,12 @@ impl ConnectionService<ChatServiceMessage> for ChatService {
             ChatServiceMessage::StopListening(listener_id, listener_token) => {
                 if let Some((_, entry)) = LISTENERS
                     .remove_if_async(&listener_id, |entry| {
-                        if listener_token.validate_commitment(entry.0) {
-                            true
-                        } else {
-                            false
-                        }
+                        listener_token.validate_commitment(entry.0)
                     })
                     .await
                 {
-                    if listener_token.validate_commitment(entry.0) {
-                        entry.1.abort();
-                        request.message(Message::Ok).await
-                    } else {
-                        request.error(ServiceError::InvalidCredentials).await
-                    }
+                    entry.1.abort();
+                    request.message(Message::Ok).await
                 } else {
                     request.error(ServiceError::InvalidRequest).await
                 }
