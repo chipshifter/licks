@@ -13,7 +13,7 @@ use std::{
 
 use crate::{
     database::Database, manager::servers::ServerParser, mls::credentials::LicksIdentityProvider,
-    net::manager::WebsocketManager,
+    net::websocket::WebsocketManager,
 };
 
 use self::{account::Profile, groups::GroupManager};
@@ -36,7 +36,7 @@ use mls_rs_crypto_rustcrypto::RustCryptoProvider;
 use mls_rs_provider_sqlite::SqLiteDataStorageEngine;
 use std::fmt::Debug;
 
-pub static WEBSOCKET_MANAGER: LazyLock<WebsocketManager> = LazyLock::new(WebsocketManager::default);
+pub static WEBSOCKET_MANAGER: LazyLock<WebsocketManager> = LazyLock::new(WebsocketManager::new);
 
 pub type MlsClientConfig = WithIdentityProvider<
     LicksIdentityProvider,

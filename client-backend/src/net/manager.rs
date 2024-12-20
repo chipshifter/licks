@@ -16,21 +16,20 @@ use tokio::sync::mpsc;
 use crate::manager::{account::Profile, listener::ListenerMessage};
 
 use super::{
-    connection::ConnectionServiceMessage, websocket::WebsocketConnector, AuthConnectionJenga,
-    UnauthConnectionJenga,
+    connection::ConnectionServiceMessage, AuthConnectionJenga, Connector, UnauthConnectionJenga,
 };
 
 #[derive(Default)]
-pub struct WebsocketManager {
-    connector: WebsocketConnector,
-    unauth_conns: Arc<scc::HashMap<Server, UnauthConnectionJenga<WebsocketConnector>>>,
-    auth_conns: Arc<scc::HashMap<Arc<Profile>, AuthConnectionJenga<WebsocketConnector>>>,
+pub struct Manager<C: Connector + Copy + Default> {
+    connector: C,
+    unauth_conns: Arc<scc::HashMap<Server, UnauthConnectionJenga<C>>>,
+    auth_conns: Arc<scc::HashMap<Arc<Profile>, AuthConnectionJenga<C>>>,
 }
 
-impl WebsocketManager {
+impl<C: Connector + Copy + Default> Manager<C> {
     pub fn new() -> Self {
         Self {
-            connector: WebsocketConnector,
+            connector: C::default(),
             unauth_conns: Arc::new(scc::HashMap::new()),
             auth_conns: Arc::new(scc::HashMap::new()),
         }
@@ -124,7 +123,7 @@ impl WebsocketManager {
 mod tests {
     use lib::crypto::{rng::random_bytes, usernames::UsernameHash};
 
-    use crate::account::register;
+    use crate::{account::register, net::websocket::WebsocketManager};
 
     use super::*;
 

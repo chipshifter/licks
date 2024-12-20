@@ -1,4 +1,4 @@
-use std::{convert::Infallible, pin::Pin, task::Poll};
+use std::{convert::Infallible, pin::Pin, sync::Arc, task::Poll};
 
 use futures_util::{Sink, Stream};
 use lib::{
@@ -6,7 +6,13 @@ use lib::{
     crypto::challenge::AuthChallenge,
 };
 
-use crate::net::{connection::Connection, raw_connection::RawConnection, ConnectionError};
+use crate::{
+    manager::account::Profile,
+    net::{
+        connection::Connection, raw_connection::RawConnection, AuthConnector, ConnectionError,
+        Connector, UnauthConnector,
+    },
+};
 
 /// A fake connection (which is just a stream) used to test the connection manager.
 /// It takes in bytes in input and output. The connection deserializes the input and
@@ -76,7 +82,12 @@ impl Stream for FakeConnection {
     }
 }
 
+#[derive(Debug, Default, Clone, Copy)]
 pub struct FakeConnector;
+impl UnauthConnector for FakeConnector {}
+impl AuthConnector for FakeConnector {}
+impl Connector for FakeConnector {}
+
 impl jenga::Service<String> for FakeConnector {
     type Response = Connection;
     type Error = ConnectionError;
@@ -173,12 +184,11 @@ impl Stream for FakeAuthenticatedConnection {
     }
 }
 
-pub struct FakeAuthenticatedConnector;
-impl jenga::Service<String> for FakeAuthenticatedConnector {
+impl jenga::Service<Arc<Profile>> for FakeConnector {
     type Response = Connection;
     type Error = ConnectionError;
 
-    async fn request(&self, _msg: String) -> Result<Self::Response, Self::Error> {
+    async fn request(&self, _msg: Arc<Profile>) -> Result<Self::Response, Self::Error> {
         let stream = FakeAuthenticatedConnection(scc::Bag::new(), ChallengeState::NotStarted, None);
         Ok(RawConnection::start(Box::pin(stream)).into())
     }
