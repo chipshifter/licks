@@ -1,5 +1,5 @@
 //! A generic connection handler using a stream.
-use std::ops::Deref;
+use std::{fmt::Debug, ops::Deref};
 
 use jenga::{timeout::TimeoutError, Middleware};
 use lib::{
@@ -25,6 +25,21 @@ pub struct Connection {
         MessageWire,
         jenga::timeout::Timeout<MessageWire, RawConnection>,
     >,
+}
+
+impl Debug for Connection {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Connection")
+            .field("RawConnection", self.deref())
+            .finish()
+    }
+}
+
+#[cfg(test)]
+impl PartialEq for Connection {
+    fn eq(&self, other: &Self) -> bool {
+        self.connection_id == other.connection_id
+    }
 }
 
 /// The message enum used to request [`Connection`]'s.

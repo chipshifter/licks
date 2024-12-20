@@ -88,7 +88,7 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn unauth_connection_works() {
+    async fn unauth_connector_works() {
         let url = Server::localhost().ws_url_unauth();
         let connector = WebsocketConnector;
         let conn = connector.request(url).await.expect("Connection works");
@@ -97,7 +97,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn auth_connection_works() {
+    async fn auth_connector_works() {
         let server = Server::localhost();
         let profile = register::create_account(
             &server,

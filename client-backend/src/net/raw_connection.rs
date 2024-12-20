@@ -8,6 +8,10 @@ use lib::{
     },
     crypto::{listener::ListenerToken, noise::ClientHandshake},
 };
+
+#[cfg(test)]
+use lib::{identifiers::Uuid, util::uuid::generate_uuid};
+
 use tokio::{
     sync::{mpsc, oneshot},
     time::sleep,
@@ -34,6 +38,8 @@ pub struct RawConnection {
     pub listening: ListenerHashmap,
     pub requests: RequestHashmap,
     pub cancellation_token: CancellationToken,
+    #[cfg(test)]
+    pub(crate) connection_id: Uuid,
 }
 
 impl RawConnection {
@@ -164,6 +170,8 @@ impl RawConnection {
             listener_ids: scc::HashMap::new().into(),
             requests,
             cancellation_token,
+            #[cfg(test)]
+            connection_id: generate_uuid(),
         }
     }
 

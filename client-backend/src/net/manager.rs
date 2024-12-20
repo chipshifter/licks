@@ -119,3 +119,72 @@ impl WebsocketManager {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use lib::crypto::{rng::random_bytes, usernames::UsernameHash};
+
+    use crate::account::register;
+
+    use super::*;
+
+    #[tokio::test]
+    /// Test whether open unauthenticated connections are correctly reused
+    async fn integration_unauth_duplicate_conns() {
+        let server = Server::localhost();
+        let manager = WebsocketManager::new();
+
+        assert_eq!(manager.unauth_conns.len(), 0);
+        assert_eq!(manager.auth_conns.len(), 0);
+
+        // Dummy request
+        let _ = manager
+            .request_unauth(&server, UnauthRequest::NoAccount)
+            .await
+            .expect("Server is open, connection works");
+
+        assert_eq!(manager.unauth_conns.len(), 1);
+        assert_eq!(manager.auth_conns.len(), 0);
+
+        // Other dummy request. Should not create a new connection...
+        let _ = manager
+            .request_unauth(&server, UnauthRequest::NoAccount)
+            .await
+            .expect("Server is open, connection works");
+
+        assert_eq!(manager.unauth_conns.len(), 1);
+        assert_eq!(manager.auth_conns.len(), 0);
+    }
+
+    #[tokio::test]
+    /// Test whether open authenticated connections are correctly reused
+    async fn integration_auth_duplicate_conns() {
+        let profile: Arc<Profile> =
+            register::create_account(&Server::localhost(), UsernameHash(random_bytes::<32>()))
+                .await
+                .unwrap()
+                .into();
+        let manager = WebsocketManager::new();
+
+        assert_eq!(manager.unauth_conns.len(), 0);
+        assert_eq!(manager.auth_conns.len(), 0);
+
+        // Dummy request
+        let _ = manager
+            .request_auth(profile.clone(), AuthRequest::KeyPackageAlreadyUploaded)
+            .await
+            .expect("Server is open, connection works");
+
+        assert_eq!(manager.unauth_conns.len(), 0);
+        assert_eq!(manager.auth_conns.len(), 1);
+
+        // Other dummy request. Should not create a new connection...
+        let _ = manager
+            .request_auth(profile.clone(), AuthRequest::KeyPackageAlreadyUploaded)
+            .await
+            .expect("Server is open, connection works");
+
+        assert_eq!(manager.unauth_conns.len(), 0);
+        assert_eq!(manager.auth_conns.len(), 1);
+    }
+}
