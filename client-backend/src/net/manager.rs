@@ -20,13 +20,13 @@ use super::{
 };
 
 #[derive(Default)]
-pub struct Manager<C: Connector + Copy + Default> {
+pub struct ConnectionManager<C: Connector + Copy + Default> {
     connector: C,
     unauth_conns: Arc<scc::HashMap<Server, UnauthConnectionJenga<C>>>,
     auth_conns: Arc<scc::HashMap<Arc<Profile>, AuthConnectionJenga<C>>>,
 }
 
-impl<C: Connector + Copy + Default> Manager<C> {
+impl<C: Connector + Copy + Default> ConnectionManager<C> {
     pub fn new() -> Self {
         Self {
             connector: C::default(),

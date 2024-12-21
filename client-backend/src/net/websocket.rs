@@ -8,14 +8,14 @@ use tokio_tungstenite::{connect_async, tungstenite::Message as TungsteniteMessag
 use crate::manager::account::Profile;
 
 use super::connection::Connection;
-use super::manager::Manager;
+use super::manager::ConnectionManager;
 use super::raw_connection::RawConnection;
 use super::AuthConnector;
 use super::ConnectionError;
 use super::Connector;
 use super::UnauthConnector;
 
-pub type WebsocketManager = Manager<WebsocketConnector>;
+pub type WebsocketManager = ConnectionManager<WebsocketConnector>;
 
 #[derive(Debug, Default, Clone, Copy)]
 /// [`Connection`] holds all the relevant information,
