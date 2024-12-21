@@ -186,4 +186,58 @@ mod tests {
         assert_eq!(manager.unauth_conns.len(), 0);
         assert_eq!(manager.auth_conns.len(), 1);
     }
+
+    #[tokio::test]
+    /// If a connection closes, then request() should not fail
+    async fn integration_request_after_conn_close() {
+        let server = Server::localhost();
+        let manager = WebsocketManager::new();
+
+        // Ok
+        let _ = manager
+            .request_unauth(&server, UnauthRequest::NoAccount)
+            .await
+            .expect("Server is open, connection works");
+
+        // Close connection "unexpectedly"
+
+        let conn_id_1 = {
+            let conn_ref = manager
+                .unauth_conns
+                .get(&server)
+                .expect("Connection is there");
+
+            // We must be careful about deadlocks
+            let conn = conn_ref.get().get_service();
+
+            let lock = conn.lock().await;
+            lock.cancellation_token.cancel();
+
+            lock.connection_id
+        };
+
+        // Requests still pass through because a new connection is made
+        let _ = manager
+            .request_unauth(&server, UnauthRequest::NoAccount)
+            .await
+            .expect("Server is open, connection works");
+
+        let conn_id_2 = {
+            let conn_ref = manager
+                .unauth_conns
+                .get(&server)
+                .expect("Connection is there");
+
+            // We must be careful about deadlocks
+            let conn = conn_ref.get().get_service();
+            let lock = conn.lock().await;
+
+            lock.connection_id
+        };
+
+        assert_ne!(
+            conn_id_1, conn_id_2,
+            "A new connection should have been made"
+        );
+    }
 }

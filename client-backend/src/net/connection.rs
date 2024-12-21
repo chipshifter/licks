@@ -61,6 +61,14 @@ impl jenga::Service<ConnectionServiceMessage> for Connection {
     type Error = TimeoutError<RequestError>;
 
     async fn request(&self, msg: ConnectionServiceMessage) -> Result<Self::Response, Self::Error> {
+        if !self.is_open() {
+            // If we already know the connection closed, instantly error out rather than
+            // wait for inevitable timeout
+            return Err(TimeoutError::ServiceError(
+                RequestError::SendConnectionClosed,
+            ));
+        }
+
         match msg {
             ConnectionServiceMessage::Request(message_wire) => {
                 self.inner.request(message_wire).await

@@ -3032,7 +3032,7 @@ dependencies = [
 [[package]]
 name = "jenga"
 version = "0.1.0"
-source = "git+https://github.com/hackerbirds/jenga.git#3a1d6a3271a6d6f811866216a461cef2a0118c14"
+source = "git+https://github.com/hackerbirds/jenga.git#9ee0426371a43ba1a07da27a3b3de7487321b926"
 dependencies = [
  "thiserror 2.0.7",
  "tokio",
@@ -3186,7 +3186,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc2f4eb4bc735547cfed7c0a4922cbd04a4655978c09b54f1f7b228750664c34"
 dependencies = [
  "cfg-if",
- "windows-targets 0.52.6",
+ "windows-targets 0.48.5",
 ]
 
 [[package]]
