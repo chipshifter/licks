@@ -66,7 +66,7 @@ impl RawConnection {
             let handshake = ClientHandshake::prepare_handshake().expect("todo");
 
             if let Err(_) = sender.send(handshake.buffer.read().to_vec()).await {
-                panic!();
+                panic!("Connection closed during Noise handshake");
             }
 
             // Wait for server response
@@ -81,7 +81,7 @@ impl RawConnection {
 
             // Send our final payload to server
             if let Err(_) = sender.send(buffer.read().to_vec()).await {
-                panic!();
+                panic!("Connection closed during Noise handshake");
             }
 
             loop {
