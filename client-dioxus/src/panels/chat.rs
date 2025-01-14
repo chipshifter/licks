@@ -28,8 +28,24 @@ pub fn ChatPanel(selected_group: Signal<GroupUi>) -> Element {
         messages_lock
             .iter()
             .map(|message_ui| {
+                let author = &message_ui.profile_name;
+                let message = message_ui.msg();
                 rsx! {
-                    div { class: "message", "{message_ui}" }
+                    // TODO: ARIA labels for accessibility
+                    div {
+                        class: "message",
+                        padding: "0 0 1px 4px",
+                        width: "inherit",
+                        p { 
+                            word_break: "break-all",
+                            text_wrap: "stable",
+                            b { 
+                                id: "message-author",
+                                "{author}" 
+                            }
+                            "{message}" 
+                        }
+                    }
                 }
             })
             .collect()

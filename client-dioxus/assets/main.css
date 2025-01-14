@@ -61,6 +61,10 @@ div.loading {
     background-color: var(--background);
 }
 
+.message > p > #message-author::after {
+    content: ": ";
+}
+
 div.tab-buttons > div {
     flex-grow: 1;
     margin: 0;

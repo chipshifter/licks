@@ -4,8 +4,8 @@ use std::{hash::Hash, sync::Arc};
 
 #[derive(Debug, Clone)]
 pub struct MessageUi {
-    profile_name: String,
-    _device_id: AccountId,
+    pub profile_name: String,
+    pub device_id: AccountId,
     message: MessageInner,
 }
 
@@ -20,7 +20,7 @@ impl MessageUi {
         let string = Arc::new(message);
         Self {
             profile_name,
-            _device_id: device_id,
+            device_id,
             message: MessageInner::PlainText(string),
         }
     }
