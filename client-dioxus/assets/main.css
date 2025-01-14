@@ -14,17 +14,25 @@
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
 
-    --primary: #f9ff46;
-    --secondary: #c987ff;
-    --third: #38e541;
+    --primary: #f5ff3e;
+    --secondary: #bc7af2;
+    --third: #34f53e;
+
+    --line-small: 2px;
+    --line-medium: 3px;
+    --line-large: 5px;
+
+    --padding-small: 2px;
+    --padding-medium: 4px;
+    --padding-large: 6px;
 
     --element-select: #0247d1;
-    --element-deep: #e4dad1;
-    --element-foreground: #f4ede8;
-    --element-background: #f9f2ed;
-    --foreground: #fffaf3;
-    --background: #faf4ed;
-    --contrast: rgb(255, 255, 255);
+    --element-deep: #6a6a6a;
+    --element-focus: #e6e6e6;
+    --element-secondary: #b8b8b7;
+    --element-background: #dbdbd8;
+    --foreground: rgb(207, 207, 201);
+    --background: #f8f8f8;
 
     --text: #1a1828;
     --text-dark: #000000;
@@ -45,9 +53,17 @@ html, body, div#main {
     overflow: none;
 }
 
+input, button, .icon-button {
+    border: var(--line-large) groove var(--element-secondary);
+    padding: var(--padding-small);
+    margin: var(--padding-medium);
+    background-color: var(--element-background);
+    font-size: 90%;
+}
+
 .icon-button:hover {
-    border: 3px solid var(--element-select);
-    border-radius: 4px;
+    background-color: var(--element-focus);
+    padding: var(--padding-small);
 }
 
 div.loading {
@@ -71,26 +87,7 @@ div.tab-buttons > div {
     padding: 0;
 
     display: flex;
-    flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: 3px;
-}
-
-.group-tab-button {
-    display: flex;
-    width: 100%;
-    max-height: 140px;
-    overflow: none;
-    align-items: center;
-    gap: 8px;
-    padding: 12px;
-}
-
-.group-tab-button.selected {
-    background-color: var(--primary);
-}
-
-.group-tab-button > h2 {
-    font-weight: 900;
 }

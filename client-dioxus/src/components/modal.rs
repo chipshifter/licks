@@ -39,7 +39,7 @@ pub fn Modal(
                     max_height: "400px",
                     overflow_x: "hidden",
                     overflow_y: "scroll",
-                    background_color: "var(--element-foreground)",
+                    background_color: "var(--element-background)",
                     display: "flex",
                     flex_direction: "column",
                     align_items: "center",

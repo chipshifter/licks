@@ -107,7 +107,8 @@ pub fn ChatPanel(selected_group: Signal<GroupUi>) -> Element {
             div {
                 display: "flex",
                 align_items: "center",
-                padding: "8px",
+                margin: "var(--padding-medium)",
+                padding: "var(--padding-large)",
                 height: "50px",
                 overflow: "hidden",
                 width: "100%",
@@ -121,7 +122,7 @@ pub fn ChatPanel(selected_group: Signal<GroupUi>) -> Element {
                     height: "34px",
                     min_width: "34px",
                     min_height: "34px",
-                    border_radius: "20px",
+                    border_radius: "1px",
                 }
                 h3 {
                     flex_grow: "1",
@@ -137,7 +138,7 @@ pub fn ChatPanel(selected_group: Signal<GroupUi>) -> Element {
                     },
                     InviteUsernameToGroupModal { selected_group, is_open: is_invite_modal_open }
                     ImageIcon {
-                        size: 32,
+                        size: 30,
                         icon_name: "contact_plus.png",
                         button: true,
                     }
@@ -155,17 +156,16 @@ pub fn ChatPanel(selected_group: Signal<GroupUi>) -> Element {
                     {message}
                 }
             }
+            // Message composer input
             form {
                 display: "flex",
                 justify_content: "center",
                 align_items: "center",
                 max_width: "100%",
-                height: "40px",
-                padding_left: "8px",
-                padding_right: "2px",
-                gap: "6px",
+                padding: "var(--padding-medium)",
                 onsubmit: move |_| on_press_send(),
                 input {
+                    type: "text",
                     flex_grow: "1",
                     placeholder: "Write a message",
                     value: "{input_message}",
@@ -174,13 +174,14 @@ pub fn ChatPanel(selected_group: Signal<GroupUi>) -> Element {
                 input { r#type: "submit", display: "none" }
                 // Send button
                 div {
+                    id: "chat-send-button",
                     display: "flex",
                     justify_content: "center",
                     align_items: "center",
                     height: "100%",
                     width: "auto",
                     onclick: move |_| on_press_send(),
-                    ImageIcon { size: 30, icon_name: "send_arrow.png", button: true }
+                    ImageIcon { size: 30, icon_name: "send_arrow.png", button: true, background_color: Some("var(--primary)") }
                 }
 
             }

@@ -174,35 +174,29 @@ fn App() -> Element {
                 div {
                     flex_shrink: "0",
                     display: "flex",
-                    height: "60px",
+                    height: "40px",
                     class: "tab-buttons",
                     div {
+                        border: if tab.read().eq(&Tab::Groups) { "var(--line-medium) ridge var(--element-secondary)" },
                         background_color: "var(--primary)",
                         onclick: move |_| tab.set(Tab::Groups),
-                        ImageIcon { size: 40, icon_name: "globe.png" }
+                        b { "Groups" }
+                        ImageIcon { size: 20, icon_name: "globe.png" }
                     }
                     div {
+                        border: if tab.read().eq(&Tab::Contacts) { "var(--line-medium) ridge var(--element-secondary)" },
                         background_color: "var(--secondary)",
                         onclick: move |_| tab.set(Tab::Contacts),
-                        ImageIcon { size: 40, icon_name: "contact.png" }
+                        b { "Contacts" }
+                        ImageIcon { size: 20, icon_name: "contact.png" }
                     }
                     div {
+                        border: if tab.read().eq(&Tab::Settings) { "var(--line-medium) ridge var(--element-secondary)" },
                         background_color: "var(--third)",
                         onclick: move |_| tab.set(Tab::Settings),
-                        ImageIcon { size: 40, icon_name: "wrench.png" }
+                        b { "Settings" }
+                        ImageIcon { size: 20, icon_name: "wrench.png" }
                     }
-                }
-                div {
-                    flex_shrink: "0",
-                    id: "tab-name",
-                    display: "flex",
-                    align_items: "center",
-                    padding_left: "12px",
-                    height: "40px",
-                    width: "100%",
-                    border_radius: "0 0 12px 12px",
-                    background_color: tab_color,
-                    b { font_size: "x-large", color: "var(--text-dark)", {tab_name} }
                 }
                 div { flex_grow: "1", overflow_y: "scroll", {tab_rsx} }
             }

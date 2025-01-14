@@ -59,7 +59,16 @@ pub fn GroupsTab(
         rsx! {
             div {
                 padding: "8px",
-                class: if is_selected_group { "group-tab-button selected" } else { "group-tab-button" },
+                display: "flex",
+                width: "100%",
+                max_height: "140px",
+                overflow: "none",
+                align_items: "center",
+                gap: "var(--padding-medium)",
+                background_color: if is_selected_group { "var(--element-focus)" } else { "var(--element-background)" },
+                border: if is_selected_group { "var(--line-medium) ridge var(--element-deep)" },
+                border_top: "var(--line-small) solid var(--element-deep)",
+                border_bottom: "var(--line-small) solid var(--element-deep)",
                 onclick: move |_| {
                     info!("Selecting group {group:?}");
                     *selected_group.write() = group.clone();
@@ -67,7 +76,8 @@ pub fn GroupsTab(
                 div {
                     min_width: "60px",
                     min_height: "60px",
-                    border_radius: "8px",
+                    border_radius: "2px",
+                    padding: "var(--padding-large)",
                     margin_right: "6px",
                     background_color: "{group_color}",
                 }
@@ -106,12 +116,13 @@ pub fn GroupsTab(
 
     rsx! {
         div { display: "flex", flex_direction: "column",
-            section { display: "flex",
+            section { 
+                display: "flex", 
+                margin_left: "var(--padding-medium)",
                 div {
                     display: "flex",
                     align_items: "center",
-                    padding: "8px",
-                    gap: "8px",
+                    padding: "var(--padding-small)",
                     onclick: move |_| {
                         *is_join_group_modal_open.write() = true;
                     },
@@ -125,7 +136,7 @@ pub fn GroupsTab(
                 div {
                     display: "flex",
                     align_items: "center",
-                    padding: "8px",
+                    padding: "var(--padding-small)",
                     gap: "8px",
                     onclick: move |_| {
                         *is_create_group_modal_open.write() = true;
