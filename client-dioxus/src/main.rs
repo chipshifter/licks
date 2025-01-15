@@ -170,32 +170,27 @@ fn App() -> Element {
                 height: "inherit",
                 max_width: "270px",
                 background_color: "var(--foreground)",
-                align_content: "stretch",
                 div {
-                    flex_shrink: "0",
                     display: "flex",
-                    height: "40px",
+                    height: "34px",
                     class: "tab-buttons",
                     div {
                         border: if tab.read().eq(&Tab::Groups) { "var(--line-medium) ridge var(--element-secondary)" },
                         background_color: "var(--primary)",
                         onclick: move |_| tab.set(Tab::Groups),
                         b { "Groups" }
-                        ImageIcon { size: 16, icon_name: "globe.png" }
                     }
                     div {
                         border: if tab.read().eq(&Tab::Contacts) { "var(--line-medium) ridge var(--element-secondary)" },
                         background_color: "var(--secondary)",
                         onclick: move |_| tab.set(Tab::Contacts),
                         b { "Contacts" }
-                        ImageIcon { size: 16, icon_name: "contact.png" }
                     }
                     div {
                         border: if tab.read().eq(&Tab::Settings) { "var(--line-medium) ridge var(--element-secondary)" },
                         background_color: "var(--third)",
                         onclick: move |_| tab.set(Tab::Settings),
                         b { "Settings" }
-                        ImageIcon { size: 16, icon_name: "wrench.png" }
                     }
                 }
                 div { flex_grow: "1", overflow_y: "scroll", {tab_rsx} }

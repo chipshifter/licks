@@ -80,6 +80,7 @@ div.tab-buttons > div {
     flex-grow: 1;
     margin: 0;
     padding: 0;
+    padding-top: var(--padding-small);
 
     display: flex;
     align-items: center;
