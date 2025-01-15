@@ -16,6 +16,14 @@ Licks is still a work in progress and is not yet in a functional state. Our work
 
 We currently do not accept feature requests or pull requests aimed at adding or modifying features, however, if you notice a bug feel free to report it to us so we can fix it.
 
+## Screenshot
+<br>
+<p align="center">
+  <img alt="Licks! window screenshot" width="80%" src="licks/licks-window.png" />
+</p>
+<br>
+
+
 ## How to run
 
 #### Running tests
