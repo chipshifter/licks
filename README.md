@@ -32,7 +32,7 @@ Running tests is always a good idea to make sure everything's ok. Run `cargo tes
 
 #### Running the Dioxus client
 
-You need Dioxus's prerequisites and `dioxus-cli`. Please visit Dioxus's ["Getting Started" page to learn more](https://dioxuslabs.com/learn/0.5/getting_started). You may also need `libx11` on Linux for the clipboard plugin.
+You need Dioxus's prerequisites and `dioxus-cli`. Please visit Dioxus's ["Getting Started" page to learn more](https://dioxuslabs.com/learn/0.6/getting_started/). You may also need `libx11` on Linux for the clipboard plugin.
 
 If this all works out, then you can start a debug client by running `dx serve` in the `licks/client-dioxus` folder.
 

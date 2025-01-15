@@ -6,12 +6,12 @@ rust-version = "1.81.0"
 
 [dependencies]
 # mls-rs traits used to bridge the client-server API.
-mls-rs-core = { version = "0.19.1", default-features = false, features = ["serde", "fast_serialize"] }
+mls-rs-core = { version = "0.20.0", default-features = false, features = ["serde", "fast_serialize"] }
 serde = { version = "1.0", features = ["derive"] }
 bytes = "1"
-prost = "0.12"
-uuid = { version = "1.11.0", features = ["v4", "v7", "serde"] }
-thiserror = "1"
+prost = "0.13"
+uuid = { version = "1.12.0", features = ["v4", "v7", "serde"] }
+thiserror = "2"
 
 # Crypto
 rand_core = { version = "0.6.4", features = ["getrandom"] }
@@ -28,7 +28,7 @@ hkdf = "0.12.4"
 base64ct = { version = "1.6.0", features = ["alloc"] }
 
 [build-dependencies]
-prost-build = "0.12"
+prost-build = "0.13"
 
 [dev-dependencies]
 serde_json = "1"

@@ -37,13 +37,13 @@ impl jenga::Service<String> for WebsocketConnector {
             .await
             .map_err(|_| ConnectionError::CouldNotConnect)?;
 
-        let stream = ws_stream.with(|bytes| async {
-            Ok::<_, tokio_tungstenite::tungstenite::Error>(TungsteniteMessage::Binary(bytes))
+        let stream = ws_stream.with(|bytes: Vec<u8>| async {
+            Ok::<_, tokio_tungstenite::tungstenite::Error>(TungsteniteMessage::Binary(bytes.into()))
         });
 
         let stream = stream.filter_map(|msg| async {
             if let Ok(TungsteniteMessage::Binary(bytes)) = msg {
-                Some(bytes)
+                Some(bytes.to_vec())
             } else {
                 None
             }

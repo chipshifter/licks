@@ -35,7 +35,7 @@ pub fn ws_handler(ws: WebSocketUpgrade, authenticated: bool) -> impl IntoRespons
     ws.on_upgrade(move |socket| async move {
         // Convert Sink<WsMessage> into a Sink<Vec<u8>>.
         let socket = socket.with::<Vec<u8>, _, _, _>(|bytes: Vec<u8>| async {
-            Ok::<_, axum::Error>(WsMessage::Binary(bytes))
+            Ok::<_, axum::Error>(WsMessage::Binary(bytes.into()))
         });
 
         // Convert Stream<Item = Result<Option<WsMessage>, _> into Stream<Item = Vec<u8>>
@@ -80,7 +80,7 @@ pub fn ws_handler(ws: WebSocketUpgrade, authenticated: bool) -> impl IntoRespons
 
         // Convert Stream<Item = Result<Option<Vec<u8>>, _> into Stream<Item = MessageWire>
         let server_transport_map = server_transport.clone();
-        let socket = socket.map(move |ws_m: Result<Vec<u8>, _>| match ws_m {
+        let socket = socket.map(move |ws_m: Result<axum::body::Bytes, _>| match ws_m {
             Ok(bytes) => {
                 let mut lock = server_transport_map.lock().expect("no poison");
                 let dec = lock.read(&bytes).map_err(|_| ())?;

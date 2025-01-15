@@ -43,6 +43,7 @@ pub struct RawConnection {
 }
 
 impl RawConnection {
+    // todo: use bytes::Bytes for S?
     pub fn start<S: Stream<Item = Vec<u8>> + Sink<Vec<u8>> + Send + 'static + Unpin>(
         stream: S,
     ) -> Self {

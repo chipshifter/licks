@@ -6,7 +6,6 @@ use client_backend::{
     client::{Client, ClientProfile},
     ui::GroupUi,
 };
-use components::icon::ImageIcon;
 use dioxus::prelude::*;
 use dioxus_logger::tracing::{error, info};
 use panels::{
@@ -136,23 +135,16 @@ fn App() -> Element {
     });
 
     // This lets us only read signal once and guarantees only one of the booleans is true
-    let (tab_rsx, panel_rsx, tab_name, tab_color) = match *tab.read() {
+    let (tab_rsx, panel_rsx) = match *tab.read() {
         Tab::Groups => (
             GroupsTab(GroupsTabProps {
                 group_list,
                 selected_group,
             }),
             ChatPanel(ChatPanelProps { selected_group }),
-            "Groups",
-            "var(--primary)",
         ),
-        Tab::Contacts => (
-            rsx!("Contacts tab"),
-            rsx!("Contacts panel"),
-            "Contacts",
-            "var(--secondary)",
-        ),
-        Tab::Settings => (SettingsTab(), SettingsPanel(), "Settings", "var(--third)"),
+        Tab::Contacts => (rsx!("Contacts tab"), rsx!("Contacts panel")),
+        Tab::Settings => (SettingsTab(), SettingsPanel()),
     };
 
     rsx! {

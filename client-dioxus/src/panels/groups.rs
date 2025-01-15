@@ -66,9 +66,8 @@ pub fn GroupsTab(
                 align_items: "center",
                 gap: "var(--padding-medium)",
                 background_color: if is_selected_group { "var(--element-focus)" } else { "var(--element-background)" },
+                border_bottom: "2px solid red",
                 border: if is_selected_group { "var(--line-medium) ridge var(--element-deep)" },
-                border_top: "var(--line-small) solid var(--element-deep)",
-                border_bottom: "var(--line-small) solid var(--element-deep)",
                 onclick: move |_| {
                     info!("Selecting group {group:?}");
                     *selected_group.write() = group.clone();
