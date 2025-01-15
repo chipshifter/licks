@@ -183,7 +183,7 @@ mod tests {
                 .send_application_message(&bobs_group_id, bobs_first_message_content.clone())
                 .await
                 .expect("application message should have been sent");
-            tokio::time::sleep(Duration::from_millis(500)).await;
+            tokio::time::sleep(Duration::from_millis(200)).await;
 
             let alice_message_log = alice_manager.message_log.lock().await;
             let alice_message = alice_message_log.last().map(|v| &v.1);
@@ -201,7 +201,7 @@ mod tests {
                 .send_application_message(&bobs_group_id, alices_first_message_content.clone())
                 .await
                 .expect("application message should have been sent");
-            tokio::time::sleep(Duration::from_millis(500)).await;
+            tokio::time::sleep(Duration::from_millis(200)).await;
 
             let mut bob_message_log = bob_manager.message_log.lock().await;
             let bob_message = bob_message_log.pop().map(|v| v.1);
@@ -225,6 +225,9 @@ mod tests {
             .await
             .expect("group should have been made from welcome");
 
+        // wait for alice to get group update
+        tokio::time::sleep(Duration::from_millis(200)).await;
+
         // Send a message to bob and alice and wait for it get to them
         {
             let charlies_first_message_content =
@@ -234,8 +237,7 @@ mod tests {
                 .send_application_message(&bobs_group_id, charlies_first_message_content.clone())
                 .await
                 .expect("application message should have been sent");
-            tokio::time::sleep(Duration::from_millis(500)).await;
-            tokio::time::sleep(Duration::from_millis(500)).await;
+            tokio::time::sleep(Duration::from_millis(200)).await;
 
             let mut bob_message_log = bob_manager.message_log.lock().await;
             let bob_message = bob_message_log.pop().map(|v| v.1);
