@@ -149,7 +149,15 @@ impl RawConnection {
                     // the server know we're still alive and kicking
                     () = sleep(Duration::from_secs(15)) => {
                         log::debug!("Nothing happened on connection for 10 seconds, sending heartbeat");
-                        if sender.send(MessageWire(ClientRequestId::generate(), Message::Ping(vec![72, 66])).to_bytes()).await.is_err() {
+
+                        let heartbeat = MessageWire(ClientRequestId::generate(), Message::Ping(vec![72, 66])).to_bytes();
+
+                        let Ok(encrypted_heartbeat) = transport.write(&heartbeat) else {
+                            rx.close();
+                            return;
+                        };
+
+                        if sender.send(encrypted_heartbeat.to_vec()).await.is_err() {
                             log::warn!("Connection channel sender errored out, so we're closing it.");
                             return;
                         }

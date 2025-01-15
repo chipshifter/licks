@@ -145,6 +145,20 @@ mod tests {
         assert_eq!(manager.unauth_conns.len(), 1);
         assert_eq!(manager.auth_conns.len(), 0);
 
+        let conn_id_1 = {
+            let conn_ref = manager
+                .unauth_conns
+                .get(&server)
+                .expect("Connection is there");
+
+            // We must be careful about deadlocks
+            let conn = conn_ref.get().get_service();
+
+            let lock = conn.lock().await;
+
+            lock.connection_id
+        };
+
         // Other dummy request. Should not create a new connection...
         let _ = manager
             .request_unauth(&server, UnauthRequest::NoAccount)
@@ -153,6 +167,25 @@ mod tests {
 
         assert_eq!(manager.unauth_conns.len(), 1);
         assert_eq!(manager.auth_conns.len(), 0);
+
+        let conn_id_2 = {
+            let conn_ref = manager
+                .unauth_conns
+                .get(&server)
+                .expect("Connection is there");
+
+            // We must be careful about deadlocks
+            let conn = conn_ref.get().get_service();
+
+            let lock = conn.lock().await;
+
+            lock.connection_id
+        };
+
+        assert_eq!(
+            conn_id_1, conn_id_2,
+            "Same connection is reused between requests"
+        );
     }
 
     #[tokio::test]
@@ -177,6 +210,20 @@ mod tests {
         assert_eq!(manager.unauth_conns.len(), 0);
         assert_eq!(manager.auth_conns.len(), 1);
 
+        let conn_id_1 = {
+            let conn_ref = manager
+                .auth_conns
+                .get(&profile)
+                .expect("Connection is there");
+
+            // We must be careful about deadlocks
+            let conn = conn_ref.get().get_service();
+
+            let lock = conn.lock().await;
+
+            lock.connection_id
+        };
+
         // Other dummy request. Should not create a new connection...
         let _ = manager
             .request_auth(profile.clone(), AuthRequest::KeyPackageAlreadyUploaded)
@@ -185,6 +232,25 @@ mod tests {
 
         assert_eq!(manager.unauth_conns.len(), 0);
         assert_eq!(manager.auth_conns.len(), 1);
+
+        let conn_id_2 = {
+            let conn_ref = manager
+                .auth_conns
+                .get(&profile)
+                .expect("Connection is there");
+
+            // We must be careful about deadlocks
+            let conn = conn_ref.get().get_service();
+
+            let lock = conn.lock().await;
+
+            lock.connection_id
+        };
+
+        assert_eq!(
+            conn_id_1, conn_id_2,
+            "Same connection is reused between requests"
+        );
     }
 
     #[tokio::test]
