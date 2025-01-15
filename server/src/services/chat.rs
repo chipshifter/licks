@@ -238,9 +238,10 @@ mod tests {
     #[tokio::test]
     #[allow(clippy::too_many_lines)]
     async fn test_chat_service() {
+        let ba_secret = random_bytes::<16>();
+
         let valid_proof = |msg: Vec<u8>| {
-            let secret = random_bytes::<16>();
-            let mut ba_secret = BlindedAddressSecret::from_group_secret(&secret);
+            let mut ba_secret = BlindedAddressSecret::from_group_secret(&ba_secret);
             let ba_proof = ba_secret.create_proof(msg);
 
             ba_proof
@@ -274,11 +275,15 @@ mod tests {
 
         // Send message A
         let a = vec![1, 2, 3];
-        assert_eq!(
-            ChatService::send_message(SendMessageRequest {
-                blinded_address_proof: valid_proof(a.clone())
-            }),
-            Ok(Message::Ok),
+        assert!(
+            matches!(
+                ChatService::send_message(SendMessageRequest {
+                    blinded_address_proof: valid_proof(a.clone())
+                }),
+                Ok(Message::Unauth(UnauthRequest::ChatService(
+                    ChatServiceMessage::Delivered(_)
+                )))
+            ),
             "Sending a message with a valid blinded address should work"
         );
 
@@ -287,11 +292,15 @@ mod tests {
         // Send message B
         let b = vec![1, 2, 3, 4];
 
-        assert_eq!(
-            ChatService::send_message(SendMessageRequest {
-                blinded_address_proof: valid_proof(b.clone())
-            }),
-            Ok(Message::Ok),
+        assert!(
+            matches!(
+                ChatService::send_message(SendMessageRequest {
+                    blinded_address_proof: valid_proof(b.clone())
+                }),
+                Ok(Message::Unauth(UnauthRequest::ChatService(
+                    ChatServiceMessage::Delivered(_)
+                )))
+            ),
             "Sending a message with a valid blinded address should work"
         );
 
@@ -299,16 +308,23 @@ mod tests {
 
         // Send message C
         let c = vec![1, 2, 3, 4, 5];
-        assert_eq!(
-            ChatService::send_message(SendMessageRequest {
-                blinded_address_proof: valid_proof(c.clone())
-            }),
-            Ok(Message::Ok),
+
+        assert!(
+            matches!(
+                ChatService::send_message(SendMessageRequest {
+                    blinded_address_proof: valid_proof(c.clone())
+                }),
+                Ok(Message::Unauth(UnauthRequest::ChatService(
+                    ChatServiceMessage::Delivered(_)
+                )))
+            ),
             "Sending a message with a valid blinded address should work"
         );
 
         // Did the server successfully store messages A, B, C in correct order?
+        tree.flush().unwrap();
         assert!(!tree.is_empty());
+
         let mut iter = tree.iter();
         assert_eq!(
             iter.next().expect("iter isn't empty").expect("i/o works").1,

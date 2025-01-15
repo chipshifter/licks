@@ -175,7 +175,9 @@ mod tests {
 
         // Send a message to alice and wait for it to get to her
         {
-            let bobs_first_message_content = Content::plain_text("Hello Alice, I'm going to add Charlie to this group".to_owned());
+            let bobs_first_message_content = Content::plain_text(
+                "Hello Alice, I'm going to add Charlie to this group".to_owned(),
+            );
 
             bob_manager
                 .send_application_message(&bobs_group_id, bobs_first_message_content.clone())
@@ -222,10 +224,11 @@ mod tests {
             .join_group_from_welcome_and_listen(&charlie_welcome)
             .await
             .expect("group should have been made from welcome");
-        
+
         // Send a message to bob and alice and wait for it get to them
         {
-            let charlies_first_message_content = Content::plain_text("Hello, Alice and Bob".to_owned());
+            let charlies_first_message_content =
+                Content::plain_text("Hello, Alice and Bob".to_owned());
 
             charlie_manager
                 .send_application_message(&bobs_group_id, charlies_first_message_content.clone())
@@ -246,11 +249,11 @@ mod tests {
             let alice_message_content = alice_message.map(|mes| mes.content);
             drop(alice_message_log);
 
-            assert_eq!(bob_message_content, Some(charlies_first_message_content.clone()));
+            assert_eq!(
+                bob_message_content,
+                Some(charlies_first_message_content.clone())
+            );
             assert_eq!(alice_message_content, Some(charlies_first_message_content));
-            
         }
-        
-        
     }
 }
