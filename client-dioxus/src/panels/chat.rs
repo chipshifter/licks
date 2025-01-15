@@ -106,13 +106,13 @@ pub fn ChatPanel(selected_group: Signal<GroupUi>) -> Element {
             max_width: "100%",
             div {
                 display: "flex",
-                align_items: "center",
-                margin: "var(--padding-medium)",
                 padding: "var(--padding-large)",
+                background_color: "var(--element-background)",
                 height: "50px",
                 overflow: "hidden",
                 width: "100%",
                 max_width: "100%",
+                align_items: "center",
                 // TODO: When we add support for group images,
                 // replace this div with an image (with color
                 // as a fallback)
@@ -125,7 +125,7 @@ pub fn ChatPanel(selected_group: Signal<GroupUi>) -> Element {
                     border_radius: "1px",
                 }
                 h3 {
-                    flex_grow: "1",
+                    flex_grow: 1,
                     overflow_x: "hidden",
                     text_wrap: "nowrap",
                     text_overflow: "ellipsis",
@@ -133,12 +133,14 @@ pub fn ChatPanel(selected_group: Signal<GroupUi>) -> Element {
                     "{group_name}"
                 }
                 div {
+                    display: "flex",
+                    justify_content: "center",
                     onclick: move |_| {
                         *is_invite_modal_open.write() = true;
                     },
                     InviteUsernameToGroupModal { selected_group, is_open: is_invite_modal_open }
                     ImageIcon {
-                        size: 30,
+                        size: 34,
                         icon_name: "contact_plus.png",
                         button: true,
                     }

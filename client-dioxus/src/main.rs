@@ -168,7 +168,7 @@ fn App() -> Element {
                 overflow: "hidden",
                 width: "inherit",
                 height: "inherit",
-                max_width: "300px",
+                max_width: "270px",
                 background_color: "var(--foreground)",
                 align_content: "stretch",
                 div {
@@ -181,21 +181,21 @@ fn App() -> Element {
                         background_color: "var(--primary)",
                         onclick: move |_| tab.set(Tab::Groups),
                         b { "Groups" }
-                        ImageIcon { size: 20, icon_name: "globe.png" }
+                        ImageIcon { size: 16, icon_name: "globe.png" }
                     }
                     div {
                         border: if tab.read().eq(&Tab::Contacts) { "var(--line-medium) ridge var(--element-secondary)" },
                         background_color: "var(--secondary)",
                         onclick: move |_| tab.set(Tab::Contacts),
                         b { "Contacts" }
-                        ImageIcon { size: 20, icon_name: "contact.png" }
+                        ImageIcon { size: 16, icon_name: "contact.png" }
                     }
                     div {
                         border: if tab.read().eq(&Tab::Settings) { "var(--line-medium) ridge var(--element-secondary)" },
                         background_color: "var(--third)",
                         onclick: move |_| tab.set(Tab::Settings),
                         b { "Settings" }
-                        ImageIcon { size: 20, icon_name: "wrench.png" }
+                        ImageIcon { size: 16, icon_name: "wrench.png" }
                     }
                 }
                 div { flex_grow: "1", overflow_y: "scroll", {tab_rsx} }

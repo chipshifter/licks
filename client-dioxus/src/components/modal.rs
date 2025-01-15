@@ -53,7 +53,7 @@ pub fn Modal(
                                 *is_open.write() = false;
                             },
                             ImageIcon {
-                                size: 24,
+                                size: 30,
                                 icon_name: "cross.png",
                                 button: true,
                             }

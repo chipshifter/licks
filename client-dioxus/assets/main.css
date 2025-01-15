@@ -32,17 +32,12 @@
     --element-secondary: #b8b8b7;
     --element-background: #dbdbd8;
     --foreground: rgb(207, 207, 201);
-    --background: #f8f8f8;
+    --background: #ebeae6;
 
     --text: #1a1828;
     --text-dark: #000000;
 
     color: var(--text);
-}
-
-* {
-    margin: 0;
-    padding: 0;
 }
 
 html, body, div#main {
