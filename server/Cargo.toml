@@ -14,8 +14,6 @@ axum = { version = "0.8.1", default-features = false, features = ["http1", "ws"]
 futures-util = "0.3.31"
 scc = "2.3"
 bincode = "1.3.3"
-# Bloom filters are used to prevent duplicate key packages
-bloomfilter = { version = "2", features = ["serde"]}
 
 # More efficient allocator for the server
 tikv-jemallocator = { version = "0.6", optional = true }

@@ -1,4 +1,3 @@
-use bloomfilter::Bloom;
 use lib::{
     api::messages::{AuthRequest, Message, ServiceResult, UnauthRequest},
     identifiers::{AccountId, LicksIdentifier},
@@ -13,8 +12,7 @@ use crate::{
 
 #[derive(Serialize, Deserialize)]
 struct KeyPackageTreeInfo {
-    pub bloom: Bloom<Vec<u8>>,
-    pub count: u8,
+    pub count: u16,
 }
 /// A zero byte array, used as the key for the bloom filter+counter.
 const INFO_KEY: [u8; 8] = 0u64.to_be_bytes();
@@ -56,21 +54,18 @@ impl KeyPackageService {
                     return abort(());
                 };
 
-                let mut added: u8 = 0;
+                let mut added: u16 = 0;
 
                 for key_package in key_packages {
-                    if !info.bloom.check(key_package) {
-                        info.bloom.set(key_package);
-                        if let Some(new_count) = info.count.checked_add(1) {
-                            info.count = new_count;
-                        } else {
-                            // overflow, too many key packages already uploaded,
-                            // stop inserting here
-                            break;
-                        }
-                        added += 1;
-                        tx.insert(&info.count.to_be_bytes(), key_package.as_slice())?;
+                    if let Some(new_count) = info.count.checked_add(1) {
+                        info.count = new_count;
+                    } else {
+                        // overflow, too many key packages already uploaded,
+                        // stop inserting here
+                        break;
                     }
+                    added += 1;
+                    tx.insert(&info.count.to_be_bytes(), key_package.as_slice())?;
                 }
 
                 let Some(info): Option<Vec<u8>> = serialize_bytes(info).ok() else {
@@ -94,33 +89,17 @@ impl KeyPackageService {
 
         // If we land here then the tree is either corrupted
         // or we need to initiate it because it's empty
-
-        // Construct a new empty bloom filter.
-        // We expect at most ~256 key packages per user.
         let added = user_keypackages_tree
             .transaction(|tx| {
-                // We set a 0.1% chance of a false positive if a user uploads a new key package
-                let bloom: Bloom<Vec<u8>> = Bloom::new_for_fp_rate(256, 0.001);
-                let mut added: u8 = 0;
-
+                let mut added: u16 = 0;
                 for key_package in key_packages {
-                    if !bloom.check(key_package) {
-                        if let Some(new_added) = added.checked_add(1) {
-                            added = new_added;
-                        } else {
-                            // overflow, uploaded too many--break
-                            break;
-                        }
-                        tx.insert(&added.to_be_bytes(), key_package.as_slice())?;
+                    if let Some(new_count) = added.checked_add(1) {
+                        added = new_count;
+                        tx.insert(&new_count.to_be_bytes(), key_package.as_slice())?;
                     }
                 }
 
-                let info = KeyPackageTreeInfo {
-                    bloom,
-                    count: added,
-                };
-
-                let Ok(info_bytes) = serialize_bytes(info) else {
+                let Ok(info_bytes) = serialize_bytes(KeyPackageTreeInfo { count: added }) else {
                     return abort(());
                 };
 
@@ -196,12 +175,6 @@ mod tests {
         let key_package = generate_uuid().as_bytes().to_vec();
         let key_package_vec = vec![key_package.clone()];
 
-        assert_eq!(
-            KeyPackageService::upload_key_package(&account_id, &key_package_vec),
-            Ok(Message::Ok)
-        );
-
-        // Can't upload the same key package twice
         assert_eq!(
             KeyPackageService::upload_key_package(&account_id, &key_package_vec),
             Ok(Message::Ok)
