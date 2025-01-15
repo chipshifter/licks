@@ -18,7 +18,7 @@ pub mod websocket;
 /// jemalloc is an allocator that is more efficient for the server.
 #[cfg(feature = "jemalloc")]
 #[global_allocator]
-static ALLOC: jemallocator::Jemalloc = jemallocator::Jemalloc;
+static ALLOC: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 
 #[allow(dead_code)]
 #[tokio::main]
