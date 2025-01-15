@@ -115,8 +115,8 @@ pub fn GroupsTab(
 
     rsx! {
         div { display: "flex", flex_direction: "column",
-            section { 
-                display: "flex", 
+            section {
+                display: "flex",
                 margin_left: "var(--padding-medium)",
                 div {
                     display: "flex",

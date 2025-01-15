@@ -36,14 +36,14 @@ pub fn ChatPanel(selected_group: Signal<GroupUi>) -> Element {
                         class: "message",
                         padding: "0 0 1px 4px",
                         width: "inherit",
-                        p { 
+                        p {
                             word_break: "break-all",
                             text_wrap: "stable",
-                            b { 
+                            b {
                                 id: "message-author",
-                                "{author}" 
+                                "{author}"
                             }
-                            "{message}" 
+                            "{message}"
                         }
                     }
                 }
