@@ -46,7 +46,7 @@ impl Client {
             return Ok(profile.get().clone());
         }
 
-        let profile_manager: Arc<ProfileManager> = ProfileManager::initialise_params(None).await?;
+        let profile_manager: Arc<ProfileManager> = ProfileManager::initialize(None).await?;
 
         let _ = self
             .profile_managers
@@ -78,7 +78,7 @@ impl Client {
         }
 
         let profile_manager: Arc<ProfileManager> =
-            ProfileManager::initialise_params(Some(licks_folder_path)).await?;
+            ProfileManager::initialize(Some(licks_folder_path)).await?;
 
         self.profile_managers
             .insert(profile_name.to_owned(), profile_manager.clone())

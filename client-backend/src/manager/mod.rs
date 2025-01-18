@@ -94,8 +94,8 @@ impl ProfileManager {
     /// If `root_data_folder` is Some(path), then the profile manager
     /// will create the necessary folders and database files at that location.
     /// Otherwise it will create an in-memory version.
-    pub async fn initialise_params(root_data_folder: Option<PathBuf>) -> Result<Arc<Self>> {
-        log::info!("Initialising: Loading database...");
+    pub async fn initialize(root_data_folder: Option<PathBuf>) -> Result<Arc<Self>> {
+        log::info!("Initializing: Loading database...");
 
         let sqlite_database = Database::new(root_data_folder)?;
 
@@ -143,11 +143,6 @@ impl ProfileManager {
         });
 
         Ok(client_manager)
-    }
-
-    // FIXME: Is there for test compability purposes. Remove or rename meeeee
-    pub async fn initialise() -> Result<Arc<Self>> {
-        Self::initialise_params(None).await
     }
 
     pub fn build_mlsrs_client(sqlite_database: Database, profile: &Profile) -> Result<MlsClient> {

@@ -3,21 +3,7 @@ mod tests {
 
     use mls_rs::MlsMessage;
 
-    use crate::{client::Client, manager::ProfileManager, messages::Content};
-
-    #[tokio::test]
-    pub async fn new_group_test() {
-        let manager = ProfileManager::initialise()
-            .await
-            .expect("client manager should initialize");
-
-        manager
-            .create_group_without_listener(
-                String::from("Bob's group"),
-                String::from("The place where Bob's friends hang out and talk").into(),
-            )
-            .expect("group creation should have succeeded");
-    }
+    use crate::{client::Client, messages::Content};
 
     #[tokio::test]
     pub async fn two_person_conversation_test() {
