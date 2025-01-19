@@ -27,7 +27,7 @@ mod tests {
 
     #[test]
     /// Doesn't check whether the RNG is safe/truly random,
-    /// but quickly checks if we didn't do something back by
+    /// but quickly checks if we didn't do something bad by
     /// giving back zero bytes
     fn sanity_rng_check() {
         let zero_bytes = [0u8; 32];
@@ -45,7 +45,7 @@ mod tests {
 
         assert_ne!(
             bytes, other_bytes,
-            "random_bytes() should give a random UNIQUE output"
+            "random_bytes() should generate a unique output"
         );
     }
 }

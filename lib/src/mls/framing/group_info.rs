@@ -16,7 +16,7 @@ use crate::mls::utilities::tree_math::LeafIndex;
 pub struct GroupInfo {
     pub(crate) group_context: GroupContext,
     pub(crate) extensions: Extensions,
-    confirmation_tag: Bytes,
+    pub(crate) confirmation_tag: Bytes,
     pub(crate) signer: LeafIndex,
     signature: Bytes,
 }

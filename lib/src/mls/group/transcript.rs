@@ -15,7 +15,7 @@ use super::Group;
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct ConfirmedTranscriptHash {
     pub(crate) confirmed_hash: Bytes,
-    interim_hash: Bytes,
+    pub(crate) interim_hash: Bytes,
 }
 
 impl Default for ConfirmedTranscriptHash {
