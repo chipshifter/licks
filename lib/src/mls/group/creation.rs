@@ -1,26 +1,33 @@
 use std::time::SystemTime;
 
 use crate::crypto::rng::random_bytes;
-use crate::mls::crypto::credential::Credential;
-use crate::mls::crypto::key_pair::SignatureKeyPair;
+use crate::mls;
+use crate::mls::crypto::credential::{Credential, CredentialType};
+use crate::mls::crypto::key_pair::{EncryptionKeyPair, SignatureKeyPair};
 use crate::mls::crypto::provider::CryptoProvider;
 use crate::mls::crypto::HPKEPrivateKey;
 use crate::mls::extensibility::list::MlsExtension;
+use crate::mls::extensibility::{ExtensionType, Extensions};
 use crate::mls::framing::welcome::Welcome;
-use crate::mls::framing::MlsGroupId;
+use crate::mls::framing::{MlsGroupId, ProtocolVersion};
 use crate::mls::group::config::GroupConfig;
 use crate::mls::group::Group;
 use crate::mls::key_package::KeyPackage;
 use crate::mls::key_schedule::InterimTranscriptHashInput;
-use crate::mls::ratchet_tree::RatchetTree;
+use crate::mls::ratchet_tree::leaf_node::{
+    Capabilities, LeafNode, LeafNodeSource, TreeInfoTBS, TreePosition,
+};
+use crate::mls::ratchet_tree::{Node, RatchetTree};
 use crate::mls::utilities::error::{Error, Result};
 use crate::mls::utilities::serde::Deserializer;
+use crate::mls::utilities::tree_math::LeafIndex;
 use bytes::Bytes;
 
 use super::transcript::ConfirmedTranscriptHash;
 
 impl Group {
     pub fn new(
+        crypto_provider: &impl CryptoProvider,
         group_config: GroupConfig,
         credential: Credential,
         signature_key_pair: &SignatureKeyPair,
@@ -34,19 +41,59 @@ impl Group {
         };
 
         let epoch = 0;
-        let ratchet_tree = RatchetTree::default();
+
+        let mls_extensions: Vec<MlsExtension> = Vec::new();
+        let extensions: Vec<mls::extensibility::Extension> = mls_extensions
+            .clone()
+            .iter()
+            .flat_map(|mls_ext| mls_ext.encode_extension().ok())
+            .collect();
+        let extensions_types: Vec<ExtensionType> = extensions
+            .clone()
+            .iter()
+            .map(|ext| ext.extension_type)
+            .collect();
+
+        let capabilities = Capabilities {
+            versions: vec![ProtocolVersion::MLS10],
+            cipher_suites: crypto_provider.supported(),
+            extensions: extensions_types,
+            proposals: vec![],
+            credentials: vec![CredentialType::Basic],
+        };
+
+        let tree_info_tbs = TreeInfoTBS::UpdateOrCommit(TreePosition {
+            group_id: group_id.clone(),
+            leaf_index: LeafIndex::new(0), // root of tree
+        });
+
+        // A tree with a single node, a leaf node containing an HPKE public key and credential for the creator
+        let (leaf_node, encryption_key_pair) = LeafNode::new(
+            crypto_provider,
+            group_config.crypto_config,
+            credential.clone(),
+            &signature_key_pair.clone(),
+            LeafNodeSource::Update,
+            capabilities,
+            Extensions::new(extensions),
+            tree_info_tbs,
+        )?;
+
+        let mut ratchet_tree = RatchetTree::default();
+        ratchet_tree.0.push(Some(Node::Leaf(leaf_node)));
+
         let confirmed_transcript_hash = ConfirmedTranscriptHash::default();
-        let extensions = Vec::new();
 
         Ok(Self {
             group_config,
             credential,
+            encryption_key_pair,
             signature_key: signature_key_pair.public_key.clone(),
             group_id,
             epoch,
             ratchet_tree,
             confirmed_transcript_hash,
-            extensions,
+            extensions: mls_extensions,
         })
     }
 
@@ -59,7 +106,6 @@ impl Group {
         credential: Credential,
         group_config: GroupConfig,
         welcome: Welcome,
-        ratchet_tree: RatchetTree,
     ) -> Result<Self> {
         // https://www.rfc-editor.org/rfc/rfc9420.html#section-12.4.3.1-8.1
         let key_package = KeyPackage::deserialize_exact(
@@ -92,6 +138,13 @@ impl Group {
         let group_info =
             welcome.decrypt_group_info(crypto_provider, &group_secrets.joiner_secret, &[])?;
 
+        let ratchet_tree = RatchetTree::deserialize_exact(
+            group_info
+                .extensions
+                .find_extension_data(ExtensionType::RatchetTree)
+                .ok_or(Error::NoRatchetTreeInGroup)?,
+        )?;
+
         // https://www.rfc-editor.org/rfc/rfc9420.html#section-12.4.3.1-12.2
         // TODO: Verify `group_id` is unique, but we can't do that yet
 
@@ -109,6 +162,14 @@ impl Group {
         let my_leaf_node = ratchet_tree
             .get_leaf(my_leaf)
             .expect("leaf exists because we just checked for its index");
+
+        let public_encryption_key = my_leaf_node.payload.encryption_key.clone();
+        let encryption_key_pair = EncryptionKeyPair::deserialize_exact(
+            crypto_provider
+                .key_store()
+                .retrieve(&public_encryption_key)
+                .ok_or(Error::InvalidLeafNode)?,
+        )?;
 
         let private_key_of_my_leaf = my_leaf_node.payload.signature_key.clone();
 
@@ -149,6 +210,7 @@ impl Group {
         let group = Self {
             group_config,
             credential,
+            encryption_key_pair,
             signature_key: private_key_of_my_leaf,
             group_id: group_context.group_id,
             epoch: group_context.epoch,

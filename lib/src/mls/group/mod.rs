@@ -14,6 +14,7 @@ use crate::mls::crypto::SignaturePublicKey;
 use crate::mls::framing::MlsGroupId;
 use crate::mls::group::config::GroupConfig;
 
+use super::crypto::key_pair::EncryptionKeyPair;
 use super::extensibility::list::MlsExtension;
 use super::ratchet_tree::RatchetTree;
 
@@ -29,10 +30,21 @@ pub mod transcript;
 pub struct Group {
     group_config: GroupConfig,
     credential: Credential,
+    encryption_key_pair: EncryptionKeyPair,
     signature_key: SignaturePublicKey,
     group_id: MlsGroupId,
     epoch: u64,
     ratchet_tree: RatchetTree,
     confirmed_transcript_hash: ConfirmedTranscriptHash,
     extensions: Vec<MlsExtension>,
+}
+
+impl PartialEq for Group {
+    fn eq(&self, other: &Self) -> bool {
+        self.group_config == other.group_config
+            && self.group_id == other.group_id
+            && self.epoch == other.epoch
+            && self.ratchet_tree == other.ratchet_tree
+            && self.confirmed_transcript_hash == other.confirmed_transcript_hash
+    }
 }

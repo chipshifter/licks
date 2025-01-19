@@ -78,6 +78,7 @@ impl LibMlsClient {
         let mls_group_id = MlsGroupId::from(group_id.to_bytes().to_vec());
 
         let group = Group::new(
+            &self.crypto_provider,
             self.group_config.clone(),
             self.mls_credential.clone(),
             &self.account_signature_key_pair,
@@ -90,11 +91,66 @@ impl LibMlsClient {
     pub fn join_group_from_welcome(&self, welcome: Welcome) -> Result<Group> {
         let group = Group::from_welcome(
             &self.crypto_provider,
+            self.mls_credential.clone(),
             self.group_config.clone(),
             welcome,
-            None,
         )?;
 
         Ok(group)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use lib::mls::crypto::provider::CryptoProvider;
+
+    use super::*;
+
+    #[test]
+    fn simple_group_test() {
+        const CIPHER_SUITE: CipherSuite = CipherSuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519;
+        let alice_crypto_provider = RustCryptoProvider::default();
+
+        let alice_key_pair = alice_crypto_provider
+            .signature(CIPHER_SUITE)
+            .expect("cipher suite is supported")
+            .signature_key_pair()
+            .expect("signature key pair generates");
+
+        let alice_client = LibMlsClient::build(alice_key_pair, alice_crypto_provider, CIPHER_SUITE)
+            .expect("client initializes");
+
+        let bob_crypto_provider = RustCryptoProvider::default();
+
+        let bob_key_pair = bob_crypto_provider
+            .signature(CIPHER_SUITE)
+            .expect("cipher suite is supported")
+            .signature_key_pair()
+            .expect("signature key pair generates");
+
+        let bob_client = LibMlsClient::build(bob_key_pair, bob_crypto_provider, CIPHER_SUITE)
+            .expect("client initializes");
+
+        // Alice creates Group, generates a Welcome message for Bob, Bob joins group using Welcome
+
+        let bob_key_package = bob_client
+            .generate_key_package()
+            .expect("key package is generated");
+
+        let group_id = GroupIdentifier::generate_id();
+
+        let alice_group = alice_client
+            .create_new_group(group_id)
+            .expect("group creates");
+
+        let alice_welcome = alice_group
+            .create_welcome(bob_key_package, &alice_client.crypto_provider)
+            .expect("alice can create a welcome for bob");
+
+        let bob_group = bob_client
+            .join_group_from_welcome(alice_welcome)
+            .expect("bob imports alice's group state successfully");
+
+        assert_eq!(alice_group, bob_group);
     }
 }

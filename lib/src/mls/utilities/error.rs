@@ -149,6 +149,8 @@ pub enum Error {
     NoMatchingKeyPackage,
     #[error("Extension could not be deserialized")]
     ExtensionDeserializationError,
+    #[error("group does not support ratchet trees")]
+    NoRatchetTreeInGroup,
 
     #[error("{0}")]
     Ed25519(#[from] ed25519_dalek::SignatureError),

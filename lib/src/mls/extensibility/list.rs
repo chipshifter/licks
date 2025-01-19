@@ -6,7 +6,7 @@
 use super::{Extension, ExtensionType, Extensions};
 use crate::mls::utilities::error::Result;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum MlsExtension {
     ApplicationId(super::ApplicationIdExtension),
 }
