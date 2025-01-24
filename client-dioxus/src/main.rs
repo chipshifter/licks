@@ -143,7 +143,7 @@ fn App() -> Element {
             }),
             ChatPanel(ChatPanelProps { selected_group }),
         ),
-        Tab::Contacts => (rsx!("Contacts tab"), rsx!("Contacts panel")),
+        Tab::Contacts => (rsx!( "Contacts tab" ), rsx!( "Contacts panel" )),
         Tab::Settings => (SettingsTab(), SettingsPanel()),
     };
 
@@ -162,10 +162,7 @@ fn App() -> Element {
                 height: "inherit",
                 max_width: "270px",
                 background_color: "var(--foreground)",
-                div {
-                    display: "flex",
-                    height: "34px",
-                    class: "tab-buttons",
+                div { display: "flex", height: "34px", class: "tab-buttons",
                     div {
                         border: if tab.read().eq(&Tab::Groups) { "var(--line-medium) ridge var(--element-secondary)" },
                         background_color: "var(--primary)",

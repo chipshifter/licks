@@ -36,13 +36,8 @@ pub fn ChatPanel(selected_group: Signal<GroupUi>) -> Element {
                         class: "message",
                         padding: "0 0 1px 4px",
                         width: "inherit",
-                        p {
-                            word_break: "break-all",
-                            text_wrap: "stable",
-                            b {
-                                id: "message-author",
-                                "{author}"
-                            }
+                        p { word_break: "break-all", text_wrap: "stable",
+                            b { id: "message-author", "{author}" }
                             "{message}"
                         }
                     }
@@ -172,7 +167,7 @@ pub fn ChatPanel(selected_group: Signal<GroupUi>) -> Element {
                 padding: "var(--padding-medium)",
                 onsubmit: move |_| on_press_send(),
                 input {
-                    type: "text",
+                    r#type: "text",
                     flex_grow: "1",
                     placeholder: "Write a message",
                     value: "{input_message}",
@@ -188,9 +183,14 @@ pub fn ChatPanel(selected_group: Signal<GroupUi>) -> Element {
                     height: "100%",
                     width: "auto",
                     onclick: move |_| on_press_send(),
-                    ImageIcon { size: 30, icon_name: "send_arrow.png", button: true, background_color: Some("var(--primary)") }
+                    ImageIcon {
+                        size: 30,
+                        icon_name: "send_arrow.png",
+                        button: true,
+                        background_color: Some("var(--primary)"),
+                    }
                 }
-
+            
             }
         }
     }
