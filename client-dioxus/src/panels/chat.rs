@@ -53,9 +53,14 @@ pub fn ChatPanel(selected_group: Signal<GroupUi>) -> Element {
 
     let on_press_send = move || {
         spawn(async move {
+            let message = input_message.read().clone();
+
+            if message.is_empty() {
+                return;
+            }
+
             let group_lock = selected_group.read();
             let profile = get_default_profile();
-            let message = input_message.read().clone();
 
             let account_id = profile.profile.get_account_id();
             // TODO: Load our actual profile name somewhere idk
