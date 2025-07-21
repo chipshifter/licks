@@ -10,9 +10,10 @@
 use transcript::ConfirmedTranscriptHash;
 
 use crate::mls::crypto::credential::Credential;
-use crate::mls::crypto::SignaturePublicKey;
+use crate::mls::crypto::{Key, SignaturePublicKey};
 use crate::mls::framing::MlsGroupId;
 use crate::mls::group::config::GroupConfig;
+use crate::mls::ratchet_tree::leaf_node::LeafNode;
 
 use super::crypto::key_pair::EncryptionKeyPair;
 use super::extensibility::list::MlsExtension;
@@ -26,7 +27,7 @@ pub mod creation;
 pub mod evolution;
 pub mod transcript;
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Group {
     group_config: GroupConfig,
     credential: Credential,
@@ -37,6 +38,9 @@ pub struct Group {
     ratchet_tree: RatchetTree,
     confirmed_transcript_hash: ConfirmedTranscriptHash,
     extensions: Vec<MlsExtension>,
+    our_leaf_node: LeafNode,
+    init_secret: Key,
+    our_generation: u32,
 }
 
 impl PartialEq for Group {

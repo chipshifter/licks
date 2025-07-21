@@ -36,12 +36,25 @@ impl TryFrom<Vec<MlsExtension>> for Extensions {
     type Error = crate::mls::utilities::error::Error;
 
     fn try_from(value: Vec<MlsExtension>) -> std::result::Result<Self, Self::Error> {
-        let mut extensions = Vec::with_capacity(value.len());
-
-        for mls_extension in value {
-            extensions.push(mls_extension.encode_extension()?);
-        }
+        let extensions = value
+            .into_iter()
+            .filter_map(|mls_ext| mls_ext.encode_extension().ok())
+            .collect();
 
         Ok(Self(extensions))
+    }
+}
+
+impl TryFrom<Extensions> for Vec<MlsExtension> {
+    type Error = crate::mls::utilities::error::Error;
+
+    fn try_from(extensions: Extensions) -> std::result::Result<Self, Self::Error> {
+        let mls_extensions = extensions
+            .0
+            .into_iter()
+            .filter_map(|ext| MlsExtension::decode_extension(ext).ok())
+            .collect();
+
+        Ok(mls_extensions)
     }
 }

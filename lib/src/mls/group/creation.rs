@@ -5,7 +5,7 @@ use crate::mls;
 use crate::mls::crypto::credential::{Credential, CredentialType};
 use crate::mls::crypto::key_pair::{EncryptionKeyPair, SignatureKeyPair};
 use crate::mls::crypto::provider::CryptoProvider;
-use crate::mls::crypto::HPKEPrivateKey;
+use crate::mls::crypto::{HPKEPrivateKey, Key};
 use crate::mls::extensibility::list::MlsExtension;
 use crate::mls::extensibility::{ExtensionType, Extensions};
 use crate::mls::framing::welcome::Welcome;
@@ -80,7 +80,7 @@ impl Group {
         )?;
 
         let mut ratchet_tree = RatchetTree::default();
-        ratchet_tree.0.push(Some(Node::Leaf(leaf_node)));
+        ratchet_tree.0.push(Some(Node::Leaf(leaf_node.clone())));
 
         let confirmed_transcript_hash = ConfirmedTranscriptHash::default();
 
@@ -94,6 +94,9 @@ impl Group {
             ratchet_tree,
             confirmed_transcript_hash,
             extensions: mls_extensions,
+            our_leaf_node: leaf_node,
+            our_generation: 0,
+            init_secret: Key::default(),
         })
     }
 
@@ -217,6 +220,9 @@ impl Group {
             ratchet_tree,
             confirmed_transcript_hash,
             extensions,
+            our_leaf_node: key_package.payload.leaf_node,
+            init_secret: Key::default(),
+            our_generation: 0,
         };
 
         Ok(group)

@@ -70,6 +70,36 @@ impl GroupInfo {
         Ok(())
     }
 
+    pub(crate) fn new(
+        crypto_provider: &impl CryptoProvider,
+        group_context: GroupContext,
+        extensions: Extensions,
+        confirmation_tag: Bytes,
+        signer: LeafIndex,
+        signature_key: &[u8],
+    ) -> Result<Self> {
+        let cipher_suite = group_context.cipher_suite;
+
+        // Serialize base to sign it
+        let mut group_info = GroupInfo {
+            group_context,
+            extensions,
+            confirmation_tag,
+            signer,
+            ..Default::default()
+        };
+
+        let mut buf = BytesMut::new();
+        group_info.serialize_base(&mut buf)?;
+        let tbs = buf.freeze();
+
+        group_info.signature = crypto_provider
+            .signature(cipher_suite)?
+            .sign(signature_key, &tbs)?;
+
+        Ok(group_info)
+    }
+
     pub(crate) fn verify_signature(
         &self,
         crypto_provider: &impl CryptoProvider,

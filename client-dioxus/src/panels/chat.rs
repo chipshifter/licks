@@ -5,8 +5,8 @@ use client_backend::{
     ui::{GroupUi, MessageUi},
 };
 use dioxus::prelude::*;
+use dioxus_clipboard::hooks::use_clipboard;
 use dioxus_logger::tracing::*;
-use dioxus_sdk::clipboard::use_clipboard;
 
 use crate::{
     components::{icon::ImageIcon, modal::Modal},
@@ -190,7 +190,7 @@ pub fn ChatPanel(selected_group: Signal<GroupUi>) -> Element {
                         background_color: Some("var(--primary)"),
                     }
                 }
-            
+
             }
         }
     }

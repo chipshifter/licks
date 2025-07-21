@@ -22,7 +22,7 @@ use crate::mls::utilities::serde::{
 };
 use crate::mls::utilities::tree_math::LeafIndex;
 
-const LEAF_NODE_SIGNATURE_LABEL: &str = "LeafNodeTBS";
+pub const LEAF_NODE_SIGNATURE_LABEL: &[u8] = b"LeafNodeTBS";
 
 /// [RFC9420 Sec.7.2](https://www.rfc-editor.org/rfc/rfc9420.html#section-7.2) `LeafNodeSource`
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
@@ -431,11 +431,32 @@ impl LeafNode {
         let signature = crypto_provider.sign_with_label(
             crypto_config.cipher_suite,
             &signature_key_pair.public_key,
-            LEAF_NODE_SIGNATURE_LABEL.as_bytes(),
+            LEAF_NODE_SIGNATURE_LABEL,
             &leaf_node_tbs.serialize_detached()?,
         )?;
 
         Ok((Self { payload, signature }, encryption_key_pair))
+    }
+
+    pub(crate) fn update_signature(
+        &mut self,
+        crypto_provider: &impl CryptoProvider,
+        cipher_suite: CipherSuite,
+        tree_info_tbs: TreeInfoTBS,
+    ) -> Result<()> {
+        let leaf_node_tbs = LeafNodeTBS {
+            payload: &self.payload,
+            tree_info_tbs,
+        };
+
+        self.signature = crypto_provider.sign_with_label(
+            cipher_suite,
+            &self.payload.signature_key,
+            LEAF_NODE_SIGNATURE_LABEL,
+            &leaf_node_tbs.serialize_detached()?,
+        )?;
+
+        Ok(())
     }
 
     /// Verify the signature of the leaf node.
@@ -461,7 +482,7 @@ impl LeafNode {
             .verify_with_label(
                 cipher_suite,
                 &self.payload.signature_key,
-                LEAF_NODE_SIGNATURE_LABEL.as_bytes(),
+                LEAF_NODE_SIGNATURE_LABEL,
                 &leaf_node_tbs,
                 &self.signature,
             )

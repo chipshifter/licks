@@ -14,6 +14,8 @@ use panels::{
     settings::{SettingsPanel, SettingsTab},
 };
 
+use crate::components::tabs::Tabs;
+
 pub mod components;
 pub mod panels;
 
@@ -143,7 +145,7 @@ fn App() -> Element {
             }),
             ChatPanel(ChatPanelProps { selected_group }),
         ),
-        Tab::Contacts => (rsx!( "Contacts tab" ), rsx!( "Contacts panel" )),
+        Tab::Contacts => (rsx!("Contacts tab"), rsx!("Contacts panel")),
         Tab::Settings => (SettingsTab(), SettingsPanel()),
     };
 
@@ -189,7 +191,10 @@ fn App() -> Element {
                 width: "inherit",
                 height: "inherit",
                 overflow: "hidden",
-                {panel_rsx}
+                div {
+                    Tabs {}
+                    {panel_rsx}
+                }
             }
         }
     }

@@ -10,10 +10,11 @@ rust-version = "1.81.0"
 [dependencies]
 client-backend = { path = "../client-backend" }
 
-dioxus = { version = "0.6", features = ["desktop"] }
-dioxus-sdk = { version = "0.6", features = ["clipboard"] }
+dioxus = { version = "0.7.0-alpha.1", features = ["desktop"] }
+dioxus-sdk = { version = "0.7.0-alpha.1" }
+dioxus-clipboard = "0.2.0"
 
 # Debug
-dioxus-logger = "0.6"
+dioxus-logger = "0.7.0-alpha.1"
 futures-util = "0.3.31"
 env_logger = "0.11.6"

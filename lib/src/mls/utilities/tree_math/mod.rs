@@ -114,7 +114,7 @@ impl NumLeaves {
 }
 
 /// `NodeIndex` is the index of a node in a tree.
-#[derive(Default, Debug, Copy, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Default, Debug, Hash, Copy, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct NodeIndex(pub(crate) u32);
 
 impl NodeIndex {

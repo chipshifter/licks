@@ -279,10 +279,10 @@ impl Serializer for PreSharedKeyProposal {
 
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct ReInitProposal {
-    group_id: MlsGroupId,
-    version: ProtocolVersion,
-    cipher_suite: CipherSuite,
-    extensions: Extensions,
+    pub(crate) group_id: MlsGroupId,
+    pub(crate) version: ProtocolVersion,
+    pub(crate) cipher_suite: CipherSuite,
+    pub(crate) extensions: Extensions,
 }
 
 impl Deserializer for ReInitProposal {
@@ -324,7 +324,7 @@ impl Serializer for ReInitProposal {
 
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct ExternalInitProposal {
-    kem_output: Bytes,
+    pub kem_output: Bytes,
 }
 
 impl Deserializer for ExternalInitProposal {
@@ -349,7 +349,7 @@ impl Serializer for ExternalInitProposal {
 
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct GroupContextExtensionsProposal {
-    extensions: Extensions,
+    pub extensions: Extensions,
 }
 
 impl Deserializer for GroupContextExtensionsProposal {

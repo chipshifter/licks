@@ -102,6 +102,7 @@ impl LibMlsClient {
 
 #[cfg(test)]
 mod tests {
+
     use lib::mls::crypto::provider::CryptoProvider;
 
     use super::*;
@@ -139,11 +140,11 @@ mod tests {
 
         let group_id = GroupIdentifier::generate_id();
 
-        let alice_group = alice_client
+        let mut alice_group = alice_client
             .create_new_group(group_id)
             .expect("group creates");
 
-        let alice_welcome = alice_group
+        let (_, alice_welcome) = alice_group
             .create_welcome(bob_key_package, &alice_client.crypto_provider)
             .expect("alice can create a welcome for bob");
 

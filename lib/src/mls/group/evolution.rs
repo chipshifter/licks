@@ -1,14 +1,36 @@
 #![allow(warnings)]
+use std::{collections::HashSet, ops::Add};
+
+use bytes::Bytes;
+
 use crate::mls::{
-    crypto::{provider::CryptoProvider, HPKEPublicKey},
-    framing::{
-        group_info::{GroupInfo, GroupSecrets},
-        welcome::{EncryptedGroupSecrets, Welcome},
+    crypto::{
+        cipher_suite::{self, CipherSuite},
+        provider::CryptoProvider,
+        HPKEPublicKey, Key,
     },
+    framing::{
+        commit::Commit,
+        group_info::{GroupInfo, GroupSecrets},
+        private_message::PrivateMessage,
+        proposal::{AddProposal, Proposal, ProposalOrRef, ReInitProposal},
+        welcome::{EncryptedGroupSecrets, Welcome},
+        Content, FramedContent, FramedContentTBS, ProtocolVersion, Sender, SenderData, WireFormat,
+    },
+    group::transcript::ConfirmedTranscriptHash,
     key_package::{KeyPackage, KeyPackageRef},
-    key_schedule::{extract_welcome_secret, GroupContext},
-    ratchet_tree::HPKECiphertext,
-    utilities::{error::Result, serde::Serializer},
+    key_schedule::{
+        extract_welcome_secret, ConfirmedTranscriptHashInput, GroupContext,
+        InterimTranscriptHashInput, SECRET_LABEL_CONFIRM, SECRET_LABEL_ENCRYPTION,
+        SECRET_LABEL_SENDER_DATA,
+    },
+    ratchet_tree::{parent_node::ParentNode, HPKECiphertext, Node, UpdatePath, UpdatePathNode},
+    secret_tree::{RatchetLabel, SecretTree},
+    utilities::{
+        error::{Error, Result},
+        serde::Serializer,
+        tree_math::{LeafIndex, NodeIndex},
+    },
 };
 
 use super::Group;
@@ -36,38 +58,267 @@ impl Group {
         })
     }
 
-    pub fn create_welcome(
-        &self,
-        key_package: KeyPackage,
+    pub fn create_commit(
+        &mut self,
+        proposals: Vec<Proposal>,
         crypto_provider: &impl CryptoProvider,
-    ) -> Result<Welcome> {
-        // TODO: This might all need to be moved in a `create_commit` function,
-        // which in the case of creating a welcome, would both create a Welcome
-        // and a new user commit at the same time
+        new_members_key_packages: Option<Vec<KeyPackage>>,
+    ) -> Result<(PrivateMessage, Welcome)> {
+        let cipher_suite = self.group_config.crypto_config.cipher_suite;
+        let mut new_group = self.clone();
+        // todo verify proposals
+        // https://www.rfc-editor.org/rfc/rfc9420.html#section-12.4.1-3.1
 
-        let key_package_ref = key_package.generate_ref(crypto_provider)?;
-        let cipher_suite = key_package.payload.cipher_suite;
+        // https://www.rfc-editor.org/rfc/rfc9420.html#section-12.4.1-3.2
+        let mut commit = Commit {
+            path: None,
+            proposals: proposals
+                .clone()
+                .into_iter()
+                .map(|prop| ProposalOrRef::Proposal(prop))
+                .collect(),
+        };
 
-        let group_context = self.get_group_context(crypto_provider)?;
+        let mut external_init_kem_output: Option<Bytes> = None;
+        let mut reinit_proposal: Option<ReInitProposal> = None;
 
-        // TODO support PSKs?
-        let psk_secret = &[];
+        // Apply proposal list
+        // https://www.rfc-editor.org/rfc/rfc9420.html#section-12.4.1-3.3
 
-        let joiner_secret = group_context.extract_joiner_secret(
+        // https://www.rfc-editor.org/rfc/rfc9420.html#applying-a-proposal-list
+        let mut new_ratchet_tree = new_group.ratchet_tree.clone();
+
+        // All the for-s are to preserve order of processing in a lazy way
+        // TODO: This can definitely be optimized
+
+        for proposal in &proposals {
+            if let Proposal::GroupContextExtensions(exts_proposal) = proposal {
+                new_group.extensions = exts_proposal.extensions.clone().try_into().unwrap();
+            }
+        }
+
+        let (sender, leaf_exists) = new_group.ratchet_tree.find_leaf(&self.our_leaf_node);
+        debug_assert!(leaf_exists);
+
+        // Apply Update/Add/Remove
+        new_ratchet_tree.apply(&proposals, &[sender]);
+
+        for proposal in &proposals {
+            if let Proposal::ExternalInit(init_proposal) = proposal {
+                external_init_kem_output = Some(init_proposal.kem_output.clone());
+            }
+        }
+
+        for proposal in &proposals {
+            if let Proposal::ReInit(p) = proposal {
+                reinit_proposal = Some(p.clone());
+            }
+        }
+
+        // Update epoch
+        new_group.epoch += 1;
+
+        // Populate commit's `path` field
+        // https://www.rfc-editor.org/rfc/rfc9420.html#section-12.4.1-3.5.1
+
+        // TODO
+        // https://www.rfc-editor.org/rfc/rfc9420.html#section-12.4.1-3.5.2.1
+        let leaf_node = new_group.our_leaf_node.clone();
+        let (leaf_index, ok) = new_ratchet_tree.find_leaf(&leaf_node);
+        debug_assert!(ok);
+
+        let filtered_direct_path =
+            new_ratchet_tree.filtered_direct_path(leaf_index.node_index())?;
+
+        let parent_nodes: Vec<ParentNode> = filtered_direct_path
+            .iter()
+            .filter_map(|i| new_ratchet_tree.get(*i))
+            .filter_map(|node| match node {
+                Node::Leaf(leaf_node) => None,
+                Node::Parent(parent_node) => Some(parent_node.clone()),
+            })
+            .collect();
+
+        let (new_node, path_secret) = new_ratchet_tree.update_direct_path(
             crypto_provider,
-            todo!("path secrets / init_secret[n-1]"),
-            todo!("commit secret from current epoch"),
+            CipherSuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519,
+            leaf_index,
+            self.group_id.clone(),
         )?;
 
-        let welcome_secret =
-            extract_welcome_secret(crypto_provider, cipher_suite, &joiner_secret, psk_secret)?;
+        let commit_secret = crypto_provider.derive_secret(cipher_suite, &path_secret, b"path")?;
 
+        let old_group_context = self.get_group_context(crypto_provider)?;
+        let cipher_suite = CipherSuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519;
+
+        // https://www.rfc-editor.org/rfc/rfc9420.html#section-12.4.1-3.5.2.3.1
+        let provisional_group_context = GroupContext {
+            version: ProtocolVersion::MLS10,
+            cipher_suite,
+            group_id: old_group_context.group_id.clone(),
+            epoch: new_group.epoch, /* this is updated */
+            tree_hash: new_ratchet_tree.compute_root_tree_hash(crypto_provider, cipher_suite)?,
+            confirmed_transcript_hash: old_group_context.confirmed_transcript_hash.clone(),
+            extensions: new_group.extensions.clone().try_into()?,
+        };
+
+        // https://www.rfc-editor.org/rfc/rfc9420.html#section-12.4.1-3.5.2.5
+        let update_path = UpdatePath::from_leaf_node(
+            leaf_node,
+            parent_nodes,
+            crypto_provider,
+            cipher_suite,
+            &provisional_group_context,
+            &path_secret,
+        )?;
+        commit.path = Some(update_path);
+
+        // https://www.rfc-editor.org/rfc/rfc9420.html#section-12.4.1-3.5.2.4
+        new_group.ratchet_tree = new_ratchet_tree;
+
+        // If ExternalInit proposal, re-initialize the group
+        if let Some(external_init_kem_key) = external_init_kem_output {
+            todo!("https://www.rfc-editor.org/rfc/rfc9420.html#name-external-initialization");
+        }
+
+        if let Some(reinit_group_info) = reinit_proposal {
+            todo!("https://www.rfc-editor.org/rfc/rfc9420.html#section-12.4.1-3.13.1");
+        }
+
+        // https://www.rfc-editor.org/rfc/rfc9420.html#section-12.4.1-3.5.2.5
+        let framed_content = FramedContent {
+            group_id: self.group_id.clone(),
+            epoch: self.epoch,
+            sender: Sender::Member(leaf_index),
+            authenticated_data: Bytes::new(), //todo?
+            content: Content::Commit(commit),
+        };
+
+        let framed_content_tbs = FramedContentTBS {
+            version: ProtocolVersion::MLS10,
+            wire_format: WireFormat::PrivateMessage,
+            content: framed_content.clone(),
+            context: Some(old_group_context.clone()),
+        };
+
+        let framed_content_signature = crypto_provider.sign_with_label(
+            cipher_suite,
+            &self.signature_key,
+            b"FramedContentTBS",
+            &framed_content_tbs.serialize_detached()?,
+        )?;
+
+        let old_joiner_secret = old_group_context.extract_joiner_secret(
+            crypto_provider,
+            &self.init_secret,
+            &commit_secret,
+        )?;
+        let old_epoch_secret =
+            old_group_context.extract_epoch_secret(crypto_provider, &old_joiner_secret, &[])?;
+        let old_confirmation_key =
+            crypto_provider.derive_secret(cipher_suite, &old_epoch_secret, SECRET_LABEL_CONFIRM)?;
+        let old_confirmation_tag = crypto_provider.sign_mac(
+            cipher_suite,
+            &old_confirmation_key,
+            &old_group_context.confirmed_transcript_hash,
+        )?;
+        let confirmed_transcript_hash_input = new_group.hash_new_confirmed_transcript_hash(
+            crypto_provider,
+            &ConfirmedTranscriptHashInput {
+                wire_format: WireFormat::PrivateMessage,
+                content: framed_content.clone(),
+                signature: framed_content_signature,
+            },
+            &InterimTranscriptHashInput {
+                confirmation_tag: old_confirmation_tag,
+            },
+        )?;
+
+        new_group.confirmed_transcript_hash = confirmed_transcript_hash_input.into();
+        let new_group_context = new_group.get_group_context(crypto_provider)?;
+
+        // https://www.rfc-editor.org/rfc/rfc9420.html#section-12.4.1-3.5.2.5
+        let new_init_secret = self.init_secret.clone();
+        let new_joiner_secret = new_group_context.extract_joiner_secret(
+            crypto_provider,
+            &new_init_secret,
+            &commit_secret,
+        )?;
+        let new_epoch_secret =
+            new_group_context.extract_epoch_secret(crypto_provider, &new_joiner_secret, &[])?;
+        let new_confirmation_key =
+            crypto_provider.derive_secret(cipher_suite, &new_epoch_secret, SECRET_LABEL_CONFIRM)?;
+
+        let new_confirmation_tag = crypto_provider.sign_mac(
+            cipher_suite,
+            &new_confirmation_key,
+            &new_group_context.confirmed_transcript_hash,
+        )?;
+
+        // https://www.rfc-editor.org/rfc/rfc9420.html#section-12.4.1-3.8.2.4
+        let new_interim_transcript_hash_input = InterimTranscriptHashInput {
+            confirmation_tag: new_confirmation_tag.clone(),
+        };
+
+        let sender_data_secret = crypto_provider.derive_secret(
+            cipher_suite,
+            &new_epoch_secret,
+            SECRET_LABEL_SENDER_DATA,
+        )?;
+
+        let encryption_secret = crypto_provider.derive_secret(
+            cipher_suite,
+            &new_epoch_secret,
+            SECRET_LABEL_ENCRYPTION,
+        )?;
+
+        // todo put in ratchettree function?
+        let secret_tree = SecretTree::new(
+            crypto_provider,
+            cipher_suite,
+            new_group.ratchet_tree.num_leaves(),
+            &encryption_secret,
+        )?;
+
+        new_group.our_generation += 1;
+        let generation = new_group.our_generation;
+
+        let content = SenderData::new(leaf_index, generation)?;
+        let ratchet_secret = secret_tree.derive_ratchet_root(
+            crypto_provider,
+            cipher_suite,
+            leaf_index.node_index(),
+            RatchetLabel::Application,
+        )?;
+
+        // https://www.rfc-editor.org/rfc/rfc9420.html#section-12.4.1-3.9.1
+        let private_message = PrivateMessage::new(
+            crypto_provider,
+            cipher_suite,
+            &self.signature_key,
+            &ratchet_secret,
+            &sender_data_secret,
+            &framed_content,
+            &content,
+            &new_group_context,
+        )?;
+
+        // https://www.rfc-editor.org/rfc/rfc9420.html#section-12.4.1-3.10.1
+        let group_info = GroupInfo::new(
+            crypto_provider,
+            new_group_context,
+            self.extensions.clone().try_into()?,
+            new_confirmation_tag,
+            leaf_index,
+            &self.signature_key,
+        )?;
+
+        // https://www.rfc-editor.org/rfc/rfc9420.html#section-12.4.1-3.10.2.6
+        let welcome_secret =
+            extract_welcome_secret(crypto_provider, cipher_suite, &new_joiner_secret, &[])?;
         let (welcome_key, welcome_nonce) =
             Welcome::extract_key_and_nonce(welcome_secret, crypto_provider, cipher_suite)?;
-
-        let group_info: GroupInfo = todo!("Create GroupInfoTBS struct, and sign it");
         let group_info_serialized = group_info.serialize_detached()?;
-
         // AEAD seal serialized group info with welcome key+nonce
         let encrypted_group_info = crypto_provider.hpke(cipher_suite)?.aead_seal(
             &welcome_key,
@@ -76,35 +327,110 @@ impl Group {
             &[], /* no additional data */
         )?;
 
-        let group_secrets = GroupSecrets {
-            joiner_secret,
-            path_secret: todo!("path secrets"),
-            psk_ids: vec![],
+        // https://www.rfc-editor.org/rfc/rfc9420.html#section-12.4.1-3.11.1
+        let mut all_encrypted_secrets = Vec::new();
+        if let Some(new_members) = new_members_key_packages {
+            for new_member in new_members {
+                // https://www.rfc-editor.org/rfc/rfc9420.html#section-12.4.1-3.11.2.1
+                let mut common_ancestor: Option<NodeIndex> = None;
+
+                let mut nodes_of_path = HashSet::new();
+
+                let (new_member_index, ok) = new_group
+                    .ratchet_tree
+                    .find_leaf(&new_member.payload.leaf_node);
+                debug_assert!(ok);
+
+                let new_member_path = new_member_index.node_index();
+                let our_path = leaf_index.node_index();
+
+                nodes_of_path.insert(new_member_path);
+                nodes_of_path.insert(our_path);
+
+                let num_leaves = new_group.ratchet_tree.num_leaves();
+                loop {
+                    let (new_member_path, ok1) = num_leaves.parent(new_member_path);
+                    let (our_path, ok2) = num_leaves.parent(our_path);
+                    if !ok1 || !ok2 {
+                        break;
+                    }
+                    if !nodes_of_path.insert(new_member_path) {
+                        common_ancestor = Some(new_member_path);
+                        break;
+                    }
+                    if !nodes_of_path.insert(our_path) {
+                        common_ancestor = Some(our_path);
+                        break;
+                    }
+                }
+
+                let common_ancestor_node = match common_ancestor {
+                    Some(node) => node,
+                    None => return Err(Error::InvalidLeafNode),
+                };
+
+                // https://www.rfc-editor.org/rfc/rfc9420.html#section-12.4.1-3.11.2.2
+                /* todo: optional `path` value? */
+                let (new_node, member_path_secret) = new_group.ratchet_tree.update_direct_path(
+                    crypto_provider,
+                    CipherSuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519,
+                    common_ancestor_node.leaf_index().0,
+                    self.group_id.clone(),
+                )?;
+
+                let commit_secret =
+                    crypto_provider.derive_secret(cipher_suite, &path_secret, b"path")?;
+
+                // https://www.rfc-editor.org/rfc/rfc9420.html#section-12.4.1-3.11.2.3
+                let group_secrets = GroupSecrets {
+                    joiner_secret: new_joiner_secret.clone(),
+                    path_secret: Some(member_path_secret),
+                    psk_ids: vec![],
+                };
+
+                let group_secrets_bytes = group_secrets.serialize_detached()?;
+
+                let (kem_output, ciphertext) = crypto_provider.encrypt_with_label(
+                    cipher_suite,
+                    &new_member.payload.init_key,
+                    b"Welcome",
+                    &encrypted_group_info,
+                    &group_secrets_bytes,
+                )?;
+
+                let encrypted_group_secrets = EncryptedGroupSecrets::new(
+                    new_member.generate_ref(crypto_provider)?,
+                    HPKECiphertext {
+                        kem_output,
+                        ciphertext,
+                    },
+                );
+
+                all_encrypted_secrets.push(encrypted_group_secrets);
+            }
+        }
+
+        // https://www.rfc-editor.org/rfc/rfc9420.html#section-12.4.1-3.12
+        let welcome = Welcome {
+            cipher_suite,
+            secrets: all_encrypted_secrets,
+            encrypted_group_info,
         };
 
-        let group_secrets_bytes = group_secrets.serialize_detached()?;
+        Ok((private_message, welcome))
+    }
 
-        let (kem_output, ciphertext) = crypto_provider.encrypt_with_label(
-            cipher_suite,
-            &key_package.payload.init_key,
-            b"Welcome",
-            &encrypted_group_info,
-            &group_secrets_bytes,
-        )?;
-
-        // TODO: This is just one secret, should we do more? How?
-        let encrypted_group_secrets = EncryptedGroupSecrets::new(
-            key_package_ref,
-            HPKECiphertext {
-                kem_output,
-                ciphertext,
-            },
-        );
-
-        Ok(Welcome {
-            cipher_suite,
-            secrets: vec![encrypted_group_secrets],
-            encrypted_group_info,
-        })
+    pub fn create_welcome(
+        &mut self,
+        key_package: KeyPackage,
+        crypto_provider: &impl CryptoProvider,
+    ) -> Result<(PrivateMessage, Welcome)> {
+        Ok(self.create_commit(
+            vec![Proposal::Add(AddProposal {
+                key_package: key_package.clone(),
+            })],
+            crypto_provider,
+            Some(vec![key_package]),
+        )?)
     }
 }

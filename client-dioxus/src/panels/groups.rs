@@ -62,7 +62,7 @@ pub fn GroupsTab(
                 display: "flex",
                 width: "100%",
                 max_height: "140px",
-                overflow: "none",
+                overflow: "hidden",
                 align_items: "center",
                 gap: "var(--padding-medium)",
                 background_color: if is_selected_group { "var(--element-focus)" } else { "var(--element-background)" },
