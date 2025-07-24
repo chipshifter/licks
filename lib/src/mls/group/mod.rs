@@ -10,7 +10,8 @@
 use transcript::ConfirmedTranscriptHash;
 
 use crate::mls::crypto::credential::Credential;
-use crate::mls::crypto::{Key, SignaturePublicKey};
+use crate::mls::crypto::key_pair::SignatureKeyPair;
+use crate::mls::crypto::Key;
 use crate::mls::framing::MlsGroupId;
 use crate::mls::group::config::GroupConfig;
 use crate::mls::ratchet_tree::leaf_node::LeafNode;
@@ -32,7 +33,7 @@ pub struct Group {
     group_config: GroupConfig,
     credential: Credential,
     encryption_key_pair: EncryptionKeyPair,
-    signature_key: SignaturePublicKey,
+    signature_key_pair: SignatureKeyPair,
     group_id: MlsGroupId,
     epoch: u64,
     ratchet_tree: RatchetTree,

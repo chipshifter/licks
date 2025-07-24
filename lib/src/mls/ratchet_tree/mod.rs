@@ -932,6 +932,7 @@ impl RatchetTree {
         crypto_provider: &impl CryptoProvider,
         cipher_suite: CipherSuite,
         sender_leaf_index: LeafIndex,
+        leaf_node_signature_private_key: &[u8],
         group_id: MlsGroupId,
     ) -> Result<Bytes> {
         let sender_node_index = sender_leaf_index.node_index();
@@ -1036,7 +1037,12 @@ impl RatchetTree {
                 group_id,
                 leaf_index: sender_leaf_index,
             });
-            sender_node.update_signature(crypto_provider, cipher_suite, tree_info_tbs.clone())?;
+            sender_node.update_signature(
+                crypto_provider,
+                cipher_suite,
+                tree_info_tbs.clone(),
+                leaf_node_signature_private_key,
+            )?;
 
             return Ok(path_secret);
         } else {

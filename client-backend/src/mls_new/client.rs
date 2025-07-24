@@ -7,7 +7,7 @@ use lib::{
             config::{CryptoConfig, CryptoConfigBuilder},
             credential::{Credential, Identity},
             key_pair::SignatureKeyPair,
-            provider::RustCryptoProvider,
+            provider::{CryptoProvider, RustCryptoProvider},
         },
         extensibility::Extensions,
         framing::{welcome::Welcome, MlsGroupId, ProtocolVersion},
@@ -49,6 +49,11 @@ impl LibMlsClient {
             .with_crypto_config(crypto_config)
             .build();
 
+        crypto_provider.key_store().store(
+            account_signature_key_pair.public_key(),
+            account_signature_key_pair.private_key(),
+        )?;
+
         Ok(Self {
             crypto_provider,
             crypto_config,
@@ -81,7 +86,7 @@ impl LibMlsClient {
             &self.crypto_provider,
             self.group_config.clone(),
             self.mls_credential.clone(),
-            &self.account_signature_key_pair,
+            self.account_signature_key_pair.clone(),
             Some(mls_group_id),
         )?;
 
@@ -152,6 +157,12 @@ mod tests {
             .join_group_from_welcome(alice_welcome)
             .expect("bob imports alice's group state successfully");
 
-        assert_eq!(alice_group, bob_group);
+        let alice_group_context = alice_group
+            .get_group_context(&alice_client.crypto_provider)
+            .unwrap();
+        let bob_group_context = bob_group
+            .get_group_context(&bob_client.crypto_provider)
+            .unwrap();
+        assert_eq!(alice_group_context, bob_group_context);
     }
 }

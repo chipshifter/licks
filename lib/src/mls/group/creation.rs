@@ -1,14 +1,14 @@
 use std::time::SystemTime;
 
 use crate::crypto::rng::random_bytes;
-use crate::mls::crypto::credential::{Credential, CredentialType};
+use crate::mls::crypto::credential::Credential;
 use crate::mls::crypto::key_pair::{EncryptionKeyPair, SignatureKeyPair};
-use crate::mls::crypto::provider::CryptoProvider;
+use crate::mls::crypto::provider::{CryptoProvider, SignatureScheme};
 use crate::mls::crypto::{HPKEPrivateKey, Key};
 use crate::mls::extensibility::list::MlsExtension;
 use crate::mls::extensibility::{ExtensionType, RatchetTreeExtension};
 use crate::mls::framing::welcome::Welcome;
-use crate::mls::framing::{MlsGroupId, ProtocolVersion};
+use crate::mls::framing::MlsGroupId;
 use crate::mls::group::config::GroupConfig;
 use crate::mls::group::Group;
 use crate::mls::key_package::KeyPackage;
@@ -29,7 +29,7 @@ impl Group {
         crypto_provider: &impl CryptoProvider,
         group_config: GroupConfig,
         credential: Credential,
-        signature_key_pair: &SignatureKeyPair,
+        signature_key_pair: SignatureKeyPair,
         group_id: Option<MlsGroupId>,
     ) -> Result<Self> {
         let group_id = if let Some(group_id) = group_id {
@@ -41,13 +41,7 @@ impl Group {
 
         let epoch = 0;
 
-        let capabilities = Capabilities {
-            versions: vec![ProtocolVersion::MLS10],
-            cipher_suites: crypto_provider.supported(),
-            extensions: vec![ExtensionType::RatchetTree],
-            proposals: vec![],
-            credentials: vec![CredentialType::Basic],
-        };
+        let capabilities = Capabilities::default();
 
         let tree_info_tbs = TreeInfoTBS::UpdateOrCommit(TreePosition {
             group_id: group_id.clone(),
@@ -79,7 +73,7 @@ impl Group {
             group_config,
             credential,
             encryption_key_pair,
-            signature_key: signature_key_pair.public_key.clone(),
+            signature_key_pair,
             group_id,
             epoch,
             ratchet_tree,
@@ -165,7 +159,11 @@ impl Group {
                 .ok_or(Error::InvalidLeafNode)?,
         )?;
 
-        let private_key_of_my_leaf = my_leaf_node.payload.signature_key.clone();
+        let signature_public_key = my_leaf_node.payload.signature_key.clone();
+        let signature_private_key = crypto_provider
+            .key_store()
+            .retrieve(&signature_public_key)
+            .ok_or(Error::SignatureKeyPairNotFound)?;
 
         crypto_provider
             .key_store()
@@ -205,7 +203,11 @@ impl Group {
             group_config,
             credential,
             encryption_key_pair,
-            signature_key: private_key_of_my_leaf,
+            signature_key_pair: SignatureKeyPair {
+                private_key: Key(signature_private_key),
+                public_key: signature_public_key,
+                signature_scheme: SignatureScheme::ED25519,
+            },
             group_id: group_context.group_id,
             epoch: group_context.epoch,
             ratchet_tree,

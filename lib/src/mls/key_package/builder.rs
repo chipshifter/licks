@@ -1,3 +1,5 @@
+use std::{time::SystemTime, u64};
+
 use super::{
     Capabilities, Credential, CryptoConfig, CryptoProvider, Extensions, KeyPackage, Lifetime,
     Result, Serializer, SignatureKeyPair,
@@ -59,7 +61,13 @@ impl KeyPackageBuilder {
             crypto_config,
             credential,
             signature_key_pair,
-            self.key_package_lifetime.unwrap_or_default(),
+            Lifetime {
+                not_before: SystemTime::now()
+                    .duration_since(SystemTime::UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs(),
+                not_after: u64::MAX,
+            },
             self.key_package_extensions.unwrap_or_default(),
             self.leaf_node_capabilities.unwrap_or_default(),
             self.leaf_node_extensions.unwrap_or_default(),

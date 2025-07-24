@@ -111,6 +111,8 @@ pub enum Error {
     KeyPackageContainsLeafNodeWithInvalidSource,
     #[error("invalid key package signature")]
     InvalidKeyPackageSignature,
+    #[error("leaf node has unknown signature key")]
+    SignatureKeyPairNotFound,
     #[error("key package encryption key and init key are identical")]
     KeyPackageEncryptionKeyAndInitKeyIdentical,
     #[error("Proposals len not match senders len")]

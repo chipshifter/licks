@@ -133,6 +133,7 @@ impl Group {
             crypto_provider,
             cipher_suite,
             sender_index,
+            self.signature_key_pair.private_key(),
             new_group.group_id.clone(),
         )?;
 
@@ -214,7 +215,7 @@ impl Group {
 
         let framed_content_signature = crypto_provider.sign_with_label(
             cipher_suite,
-            &self.signature_key,
+            self.signature_key_pair.private_key(),
             b"FramedContentTBS",
             &framed_content_tbs.serialize_detached()?,
         )?;
@@ -306,7 +307,7 @@ impl Group {
         let private_message = PrivateMessage::new(
             crypto_provider,
             cipher_suite,
-            &self.signature_key,
+            self.signature_key_pair.public_key(),
             &ratchet_secret,
             &sender_data_secret,
             &framed_content,
@@ -324,7 +325,7 @@ impl Group {
             new_extensions,
             new_confirmation_tag,
             sender_index,
-            &self.signature_key,
+            self.signature_key_pair.public_key(),
         )?;
 
         // https://www.rfc-editor.org/rfc/rfc9420.html#section-12.4.1-3.10.2.6
@@ -387,12 +388,11 @@ impl Group {
 
                 // https://www.rfc-editor.org/rfc/rfc9420.html#section-12.4.1-3.11.2.2
                 /* todo: optional `path` value? */
-                dbg!(&new_group.ratchet_tree);
-                dbg!(&common_ancestor_node);
                 let member_path_secret = new_group.ratchet_tree.update_direct_path(
                     crypto_provider,
                     CipherSuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519,
                     common_ancestor_node.leaf_index().0,
+                    self.signature_key_pair.private_key(),
                     self.group_id.clone(),
                 )?;
 
@@ -434,6 +434,8 @@ impl Group {
             secrets: all_encrypted_secrets,
             encrypted_group_info,
         };
+
+        std::mem::swap(self, &mut new_group);
 
         Ok((private_message, welcome))
     }

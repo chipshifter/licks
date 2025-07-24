@@ -17,7 +17,7 @@ pub mod key_pair;
 pub mod provider;
 
 #[derive(Default, Debug, Clone, Eq, PartialEq, Hash)]
-pub struct Key(Bytes);
+pub struct Key(pub Bytes);
 
 impl Deref for Key {
     type Target = Bytes;
