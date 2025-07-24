@@ -926,13 +926,14 @@ impl RatchetTree {
         Ok(path)
     }
 
+    // https://www.rfc-editor.org/rfc/rfc9420.html#section-7.5-5
     pub fn update_direct_path(
         &mut self,
         crypto_provider: &impl CryptoProvider,
         cipher_suite: CipherSuite,
         sender_leaf_index: LeafIndex,
         group_id: MlsGroupId,
-    ) -> Result<(Node, Bytes)> {
+    ) -> Result<Bytes> {
         let sender_node_index = sender_leaf_index.node_index();
 
         // Blank all nodes along the direct path of the sender's leaf.
@@ -943,11 +944,18 @@ impl RatchetTree {
         }
 
         // Compute updated path secrets and public keys for the nodes on the sender's filtered direct path.
-        let filtered_direct_path = self.filtered_direct_path(sender_node_index)?;
+        let sender_filtered_direct_path = self.filtered_direct_path(sender_node_index)?;
         // Generate a sequence of path secrets of the same length as the filtered direct path, as defined in Section 7.4.
-        let path_secret_0 = random_bytes_vec(32);
-        let mut path_secret = Bytes::from(path_secret_0);
-        for node_index in &filtered_direct_path {
+        let mut path_secret = Bytes::new();
+        for node_index in &sender_filtered_direct_path {
+            path_secret = if path_secret.is_empty() {
+                // path_secret[0]
+                random_bytes_vec(32).into()
+            } else {
+                // path_secret[n] = DeriveSecret(path_secret[n-1], "path")
+                crypto_provider.derive_secret(cipher_suite, &path_secret, b"path")?
+            };
+
             // For each node in the filtered direct path, replace the node's public key with
             // the node_pub[n] value derived from the corresponding path secret path_secret[n].
             let node_secret_n =
@@ -957,23 +965,16 @@ impl RatchetTree {
                 .kem_derive_key_pair(&node_secret_n)?;
             let node_pub_n = node_key_pair.public_key;
 
-            self.set(
-                *node_index,
-                Some(Node::Parent(ParentNode {
-                    encryption_key: node_pub_n,
-                    ..Default::default()
-                })),
-            );
-
-            path_secret = crypto_provider.derive_secret(cipher_suite, &path_secret, b"path")?;
+            if let Some(Node::Parent(node)) = self.get_mut(*node_index) {
+                node.encryption_key = node_pub_n;
+            }
         }
 
         // Compute the new parent hashes for the nodes along the filtered direct path and the sender's leaf node.
-        // TODO dedup code with [`merge_update_path`] below
         let exclude = HashSet::new();
-        let mut prev_parent_hash: Option<Bytes> = None;
-        for i in (0..filtered_direct_path.len()).rev() {
-            let ni = filtered_direct_path[i];
+        let mut prev_parent_hash = None;
+        for i in (0..sender_filtered_direct_path.len()).rev() {
+            let ni = sender_filtered_direct_path[i];
             let (node_parent_hash, tree_hash) =
                 if let Some(Node::Parent(_parent_node)) = self.get(ni) {
                     let (l, r, ok) = ni.children();
@@ -1001,6 +1002,7 @@ impl RatchetTree {
                     (None, Bytes::new())
                 };
 
+            //workaround to assign node.parent_hash
             if let Some(Node::Parent(parent_node)) = self.get_mut(ni) {
                 if let Some(node_parent_hash) = node_parent_hash {
                     parent_node.parent_hash = node_parent_hash;
@@ -1017,52 +1019,28 @@ impl RatchetTree {
         }
 
         // Update the leaf node for the sender.
-
-        let (i, mut new_parent_node) = {
-            let (i, parent_node) = self
-                .find_parent_node(
-                    &[sender_node_index],
-                    prev_parent_hash.as_ref().expect("exists"),
-                )
-                .expect("parent node exists");
-
-            (i, parent_node.clone())
-        };
-
-        let original_sibling_tree_hash =
-            self.compute_tree_hash(crypto_provider, cipher_suite, sender_node_index, &exclude)?;
-
         if let Some(Node::Leaf(sender_node)) = self.get_mut(sender_node_index) {
             // Set the leaf_node_source to commit.
             sender_node.payload.leaf_node_source =
-                LeafNodeSource::Commit(prev_parent_hash.clone().expect("parent hash exists"));
+                LeafNodeSource::Commit(prev_parent_hash.unwrap_or_default());
 
             // Set the encryption_key to the public key of a freshly sampled key pair.
+            let ikm = random_bytes_vec(crypto_provider.hash(cipher_suite)?.size());
             let new_keypair = crypto_provider
                 .hpke(cipher_suite)?
-                .kem_derive_key_pair(&[])?;
+                .kem_derive_key_pair(&ikm)?;
             sender_node.payload.encryption_key = new_keypair.public_key;
-
-            // Set the parent hash to the parent hash for the leaf.
-            new_parent_node.parent_hash = new_parent_node.compute_parent_hash(
-                crypto_provider,
-                cipher_suite,
-                &original_sibling_tree_hash,
-            )?;
 
             // Re-sign the leaf node with its new contents.
             let tree_info_tbs = TreeInfoTBS::UpdateOrCommit(TreePosition {
                 group_id,
                 leaf_index: sender_leaf_index,
             });
-            sender_node.update_signature(crypto_provider, cipher_suite, tree_info_tbs)?;
+            sender_node.update_signature(crypto_provider, cipher_suite, tree_info_tbs.clone())?;
 
-            let node = Node::Parent(new_parent_node);
-            self.set(i, Some(node.clone()));
-
-            Ok((node, path_secret))
+            return Ok(path_secret);
         } else {
-            Err(Error::InvalidLeafNode)
+            return Err(Error::InvalidParentNode);
         }
     }
 

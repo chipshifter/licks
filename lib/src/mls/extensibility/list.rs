@@ -4,11 +4,18 @@
 //! ways to convert between one another
 
 use super::{Extension, ExtensionType, Extensions};
-use crate::mls::utilities::error::Result;
+use crate::mls::{
+    ratchet_tree::RatchetTree,
+    utilities::{
+        error::Result,
+        serde::{Deserializer, Serializer},
+    },
+};
 
 #[derive(Debug, Clone)]
 pub enum MlsExtension {
     ApplicationId(super::ApplicationIdExtension),
+    RatchetTree(super::RatchetTreeExtension),
 }
 
 impl MlsExtension {
@@ -19,6 +26,10 @@ impl MlsExtension {
                 extension_type: ExtensionType::ApplicationId,
                 extension_data: application_id_extension.0.clone(),
             }),
+            MlsExtension::RatchetTree(ratchet_tree_extension) => Ok(Extension {
+                extension_type: ExtensionType::RatchetTree,
+                extension_data: ratchet_tree_extension.ratchet_tree.serialize_detached()?,
+            }),
         }
     }
 
@@ -27,6 +38,9 @@ impl MlsExtension {
             ExtensionType::ApplicationId => Ok(Self::ApplicationId(super::ApplicationIdExtension(
                 extension.extension_data,
             ))),
+            ExtensionType::RatchetTree => Ok(Self::RatchetTree(super::RatchetTreeExtension {
+                ratchet_tree: RatchetTree::deserialize_exact(extension.extension_data)?,
+            })),
             _ => todo!(),
         }
     }

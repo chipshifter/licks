@@ -1,13 +1,12 @@
 use std::time::SystemTime;
 
 use crate::crypto::rng::random_bytes;
-use crate::mls;
 use crate::mls::crypto::credential::{Credential, CredentialType};
 use crate::mls::crypto::key_pair::{EncryptionKeyPair, SignatureKeyPair};
 use crate::mls::crypto::provider::CryptoProvider;
 use crate::mls::crypto::{HPKEPrivateKey, Key};
 use crate::mls::extensibility::list::MlsExtension;
-use crate::mls::extensibility::{ExtensionType, Extensions};
+use crate::mls::extensibility::{ExtensionType, RatchetTreeExtension};
 use crate::mls::framing::welcome::Welcome;
 use crate::mls::framing::{MlsGroupId, ProtocolVersion};
 use crate::mls::group::config::GroupConfig;
@@ -42,44 +41,36 @@ impl Group {
 
         let epoch = 0;
 
-        let mls_extensions: Vec<MlsExtension> = Vec::new();
-        let extensions: Vec<mls::extensibility::Extension> = mls_extensions
-            .clone()
-            .iter()
-            .flat_map(|mls_ext| mls_ext.encode_extension().ok())
-            .collect();
-        let extensions_types: Vec<ExtensionType> = extensions
-            .clone()
-            .iter()
-            .map(|ext| ext.extension_type)
-            .collect();
-
         let capabilities = Capabilities {
             versions: vec![ProtocolVersion::MLS10],
             cipher_suites: crypto_provider.supported(),
-            extensions: extensions_types,
+            extensions: vec![ExtensionType::RatchetTree],
             proposals: vec![],
             credentials: vec![CredentialType::Basic],
         };
 
         let tree_info_tbs = TreeInfoTBS::UpdateOrCommit(TreePosition {
             group_id: group_id.clone(),
-            leaf_index: LeafIndex::new(0), // root of tree
+            leaf_index: LeafIndex::new(0), // leaf is root of tree
         });
 
         // A tree with a single node, a leaf node containing an HPKE public key and credential for the creator
+        let mut ratchet_tree = RatchetTree::default();
+        let extensions = vec![MlsExtension::RatchetTree(RatchetTreeExtension::new(
+            ratchet_tree.clone(),
+        ))];
+
         let (leaf_node, encryption_key_pair) = LeafNode::new(
             crypto_provider,
-            group_config.crypto_config,
+            group_config.crypto_config.cipher_suite,
             credential.clone(),
             &signature_key_pair.clone(),
             LeafNodeSource::Update,
             capabilities,
-            Extensions::new(extensions),
+            extensions.clone().try_into()?,
             tree_info_tbs,
         )?;
 
-        let mut ratchet_tree = RatchetTree::default();
         ratchet_tree.0.push(Some(Node::Leaf(leaf_node.clone())));
 
         let confirmed_transcript_hash = ConfirmedTranscriptHash::default();
@@ -93,7 +84,7 @@ impl Group {
             epoch,
             ratchet_tree,
             confirmed_transcript_hash,
-            extensions: mls_extensions,
+            extensions,
             our_leaf_node: leaf_node,
             our_generation: 0,
             init_secret: Key::default(),

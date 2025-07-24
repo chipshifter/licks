@@ -4,7 +4,6 @@ use std::ops::Add;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use crate::crypto::rng::random_bytes_vec;
-use crate::mls::crypto::config::CryptoConfig;
 use crate::mls::crypto::key_pair::{EncryptionKeyPair, SignatureKeyPair};
 use crate::mls::crypto::{
     cipher_suite::CipherSuite,
@@ -401,7 +400,7 @@ impl LeafNode {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         crypto_provider: &impl CryptoProvider,
-        crypto_config: CryptoConfig,
+        cipher_suite: CipherSuite,
         credential: Credential,
         signature_key_pair: &SignatureKeyPair,
         leaf_node_source: LeafNodeSource,
@@ -409,9 +408,9 @@ impl LeafNode {
         extensions: Extensions,
         tree_info_tbs: TreeInfoTBS,
     ) -> Result<(Self, EncryptionKeyPair)> {
-        let ikm = random_bytes_vec(crypto_provider.hash(crypto_config.cipher_suite)?.size());
+        let ikm = random_bytes_vec(crypto_provider.hash(cipher_suite)?.size());
         let encryption_key_pair = crypto_provider
-            .hpke(crypto_config.cipher_suite)?
+            .hpke(cipher_suite)?
             .kem_derive_key_pair(&ikm)?;
 
         let payload = LeafNodePayload {
@@ -423,19 +422,20 @@ impl LeafNode {
             extensions,
         };
 
-        let leaf_node_tbs = LeafNodeTBS {
-            payload: &payload,
-            tree_info_tbs,
+        let mut node = Self {
+            payload,
+            signature: Bytes::new(),
         };
 
-        let signature = crypto_provider.sign_with_label(
-            crypto_config.cipher_suite,
-            &signature_key_pair.public_key,
-            LEAF_NODE_SIGNATURE_LABEL,
-            &leaf_node_tbs.serialize_detached()?,
-        )?;
+        node.update_signature(crypto_provider, cipher_suite, tree_info_tbs.clone())?;
 
-        Ok((Self { payload, signature }, encryption_key_pair))
+        dbg!(&node.signature);
+        debug_assert!(
+            &node.verify_signature(crypto_provider, cipher_suite, tree_info_tbs),
+            "node signature must be valid"
+        );
+
+        Ok((node, encryption_key_pair))
     }
 
     pub(crate) fn update_signature(
@@ -444,16 +444,16 @@ impl LeafNode {
         cipher_suite: CipherSuite,
         tree_info_tbs: TreeInfoTBS,
     ) -> Result<()> {
-        let leaf_node_tbs = LeafNodeTBS {
-            payload: &self.payload,
-            tree_info_tbs,
-        };
-
         self.signature = crypto_provider.sign_with_label(
             cipher_suite,
             &self.payload.signature_key,
             LEAF_NODE_SIGNATURE_LABEL,
-            &leaf_node_tbs.serialize_detached()?,
+            LeafNodeTBS {
+                payload: &self.payload,
+                tree_info_tbs,
+            }
+            .serialize_detached()?
+            .as_ref(),
         )?;
 
         Ok(())
@@ -504,6 +504,7 @@ impl LeafNode {
             leaf_index,
         });
         if !self.verify_signature(crypto_provider, options.cipher_suite, tree_info_tbs) {
+            dbg!("verifying", leaf_index);
             return Err(Error::LeafNodeSignatureVerificationFailed);
         }
 

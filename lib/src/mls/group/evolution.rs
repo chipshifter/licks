@@ -9,6 +9,7 @@ use crate::mls::{
         provider::CryptoProvider,
         HPKEPublicKey, Key,
     },
+    extensibility::{list::MlsExtension, RatchetTreeExtension},
     framing::{
         commit::Commit,
         group_info::{GroupInfo, GroupSecrets},
@@ -24,7 +25,10 @@ use crate::mls::{
         InterimTranscriptHashInput, SECRET_LABEL_CONFIRM, SECRET_LABEL_ENCRYPTION,
         SECRET_LABEL_SENDER_DATA,
     },
-    ratchet_tree::{parent_node::ParentNode, HPKECiphertext, Node, UpdatePath, UpdatePathNode},
+    ratchet_tree::{
+        leaf_node::LeafNode, parent_node::ParentNode, HPKECiphertext, Node, UpdatePath,
+        UpdatePathNode,
+    },
     secret_tree::{RatchetLabel, SecretTree},
     utilities::{
         error::{Error, Result},
@@ -44,7 +48,11 @@ impl Group {
         let tree_hash = self
             .ratchet_tree
             .compute_root_tree_hash(crypto_provider, cipher_suite)?;
-        let extensions = self.group_config.extensions.clone();
+        // todo: not this
+        let extensions = vec![MlsExtension::RatchetTree(RatchetTreeExtension::new(
+            self.ratchet_tree.clone(),
+        ))]
+        .try_into()?;
         let confirmed_transcript_hash = self.confirmed_transcript_hash.confirmed_hash.clone();
 
         Ok(GroupContext {
@@ -86,8 +94,6 @@ impl Group {
         // https://www.rfc-editor.org/rfc/rfc9420.html#section-12.4.1-3.3
 
         // https://www.rfc-editor.org/rfc/rfc9420.html#applying-a-proposal-list
-        let mut new_ratchet_tree = new_group.ratchet_tree.clone();
-
         // All the for-s are to preserve order of processing in a lazy way
         // TODO: This can definitely be optimized
 
@@ -97,11 +103,10 @@ impl Group {
             }
         }
 
-        let (sender, leaf_exists) = new_group.ratchet_tree.find_leaf(&self.our_leaf_node);
-        debug_assert!(leaf_exists);
+        let (sender_index, leaf_exists) = new_group.ratchet_tree.find_leaf(&self.our_leaf_node);
 
         // Apply Update/Add/Remove
-        new_ratchet_tree.apply(&proposals, &[sender]);
+        new_group.ratchet_tree.apply(&proposals, &[sender_index]);
 
         for proposal in &proposals {
             if let Proposal::ExternalInit(init_proposal) = proposal {
@@ -123,33 +128,32 @@ impl Group {
 
         // TODO
         // https://www.rfc-editor.org/rfc/rfc9420.html#section-12.4.1-3.5.2.1
-        let leaf_node = new_group.our_leaf_node.clone();
-        let (leaf_index, ok) = new_ratchet_tree.find_leaf(&leaf_node);
-        debug_assert!(ok);
+        let (sender_index, leaf_exists) = new_group.ratchet_tree.find_leaf(&self.our_leaf_node);
+        let path_secret = new_group.ratchet_tree.update_direct_path(
+            crypto_provider,
+            cipher_suite,
+            sender_index,
+            new_group.group_id.clone(),
+        )?;
 
-        let filtered_direct_path =
-            new_ratchet_tree.filtered_direct_path(leaf_index.node_index())?;
+        let filtered_direct_path = new_group
+            .ratchet_tree
+            .filtered_direct_path(sender_index.node_index())?;
 
         let parent_nodes: Vec<ParentNode> = filtered_direct_path
             .iter()
-            .filter_map(|i| new_ratchet_tree.get(*i))
-            .filter_map(|node| match node {
-                Node::Leaf(leaf_node) => None,
-                Node::Parent(parent_node) => Some(parent_node.clone()),
+            .filter_map(|node| {
+                if let Some(Node::Parent(parent)) = new_group.ratchet_tree.get(*node) {
+                    Some(parent.clone())
+                } else {
+                    None
+                }
             })
             .collect();
-
-        let (new_node, path_secret) = new_ratchet_tree.update_direct_path(
-            crypto_provider,
-            CipherSuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519,
-            leaf_index,
-            self.group_id.clone(),
-        )?;
 
         let commit_secret = crypto_provider.derive_secret(cipher_suite, &path_secret, b"path")?;
 
         let old_group_context = self.get_group_context(crypto_provider)?;
-        let cipher_suite = CipherSuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519;
 
         // https://www.rfc-editor.org/rfc/rfc9420.html#section-12.4.1-3.5.2.3.1
         let provisional_group_context = GroupContext {
@@ -157,14 +161,22 @@ impl Group {
             cipher_suite,
             group_id: old_group_context.group_id.clone(),
             epoch: new_group.epoch, /* this is updated */
-            tree_hash: new_ratchet_tree.compute_root_tree_hash(crypto_provider, cipher_suite)?,
+            tree_hash: new_group
+                .ratchet_tree
+                .compute_root_tree_hash(crypto_provider, cipher_suite)?,
             confirmed_transcript_hash: old_group_context.confirmed_transcript_hash.clone(),
             extensions: new_group.extensions.clone().try_into()?,
         };
 
+        let sender_node = new_group
+            .ratchet_tree
+            .get_leaf(sender_index)
+            .expect("sender leaf exists and we found it previously")
+            .clone();
+
         // https://www.rfc-editor.org/rfc/rfc9420.html#section-12.4.1-3.5.2.5
         let update_path = UpdatePath::from_leaf_node(
-            leaf_node,
+            sender_node.clone(),
             parent_nodes,
             crypto_provider,
             cipher_suite,
@@ -174,7 +186,6 @@ impl Group {
         commit.path = Some(update_path);
 
         // https://www.rfc-editor.org/rfc/rfc9420.html#section-12.4.1-3.5.2.4
-        new_group.ratchet_tree = new_ratchet_tree;
 
         // If ExternalInit proposal, re-initialize the group
         if let Some(external_init_kem_key) = external_init_kem_output {
@@ -189,7 +200,7 @@ impl Group {
         let framed_content = FramedContent {
             group_id: self.group_id.clone(),
             epoch: self.epoch,
-            sender: Sender::Member(leaf_index),
+            sender: Sender::Member(sender_index),
             authenticated_data: Bytes::new(), //todo?
             content: Content::Commit(commit),
         };
@@ -283,11 +294,11 @@ impl Group {
         new_group.our_generation += 1;
         let generation = new_group.our_generation;
 
-        let content = SenderData::new(leaf_index, generation)?;
+        let content = SenderData::new(sender_index, generation)?;
         let ratchet_secret = secret_tree.derive_ratchet_root(
             crypto_provider,
             cipher_suite,
-            leaf_index.node_index(),
+            sender_index.node_index(),
             RatchetLabel::Application,
         )?;
 
@@ -304,12 +315,15 @@ impl Group {
         )?;
 
         // https://www.rfc-editor.org/rfc/rfc9420.html#section-12.4.1-3.10.1
+
+        // Update extensions to get new Ratchet Tree in group info
+        let new_extensions = new_group_context.extensions.clone();
         let group_info = GroupInfo::new(
             crypto_provider,
             new_group_context,
-            self.extensions.clone().try_into()?,
+            new_extensions,
             new_confirmation_tag,
-            leaf_index,
+            sender_index,
             &self.signature_key,
         )?;
 
@@ -339,10 +353,12 @@ impl Group {
                 let (new_member_index, ok) = new_group
                     .ratchet_tree
                     .find_leaf(&new_member.payload.leaf_node);
-                debug_assert!(ok);
+                let (our_index, ok2) = new_group.ratchet_tree.find_leaf(&sender_node);
+                debug_assert!(ok, "new member is in the tree");
+                debug_assert!(ok2, "we are in the tree");
 
                 let new_member_path = new_member_index.node_index();
-                let our_path = leaf_index.node_index();
+                let our_path = our_index.node_index();
 
                 nodes_of_path.insert(new_member_path);
                 nodes_of_path.insert(our_path);
@@ -371,7 +387,9 @@ impl Group {
 
                 // https://www.rfc-editor.org/rfc/rfc9420.html#section-12.4.1-3.11.2.2
                 /* todo: optional `path` value? */
-                let (new_node, member_path_secret) = new_group.ratchet_tree.update_direct_path(
+                dbg!(&new_group.ratchet_tree);
+                dbg!(&common_ancestor_node);
+                let member_path_secret = new_group.ratchet_tree.update_direct_path(
                     crypto_provider,
                     CipherSuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519,
                     common_ancestor_node.leaf_index().0,

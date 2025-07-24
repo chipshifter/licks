@@ -206,7 +206,7 @@ impl KeyPackage {
     ) -> Result<(Self, EncryptionKeyPair)> {
         let (leaf_node, encryption_key_pair) = LeafNode::new(
             crypto_provider,
-            crypto_config,
+            crypto_config.cipher_suite,
             credential,
             signature_key_pair,
             LeafNodeSource::KeyPackage(key_package_lifetime),

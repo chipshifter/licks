@@ -149,7 +149,7 @@ pub enum Error {
     NoMatchingKeyPackage,
     #[error("Extension could not be deserialized")]
     ExtensionDeserializationError,
-    #[error("group does not support ratchet trees")]
+    #[error("group does not contain a ratchet tree")]
     NoRatchetTreeInGroup,
 
     #[error("{0}")]
