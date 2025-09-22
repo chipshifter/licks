@@ -16,9 +16,7 @@ pub fn Tabs() -> Element {
             width: "100%",
             height: "fit-content",
             if tabs.read().is_empty() {
-                div {
-                    "There are no tabs here!"
-                }
+                div { "There are no tabs here!" }
             } else {
                 div {
                     display: "flex",
@@ -30,7 +28,7 @@ pub fn Tabs() -> Element {
                     overflow_x: "scroll",
                     width: "100%",
                     height: "48px",
-                    for (idx, tab) in tabs.read().clone().into_iter().enumerate() {
+                    for (idx , tab) in tabs.read().clone().into_iter().enumerate() {
                         div {
                             display: "flex",
                             flex_direction: "center",
@@ -43,7 +41,7 @@ pub fn Tabs() -> Element {
                             height: "40px",
                             padding: "4px",
                             box_shadow: "1px 1px 2px black",
-                            background_color: if selected_tab.read().eq(&tab.1.clone().ok()) { "var()" }else { "#{tab.0}"},
+                            background_color: if selected_tab.read().eq(&tab.1.clone().ok()) { "var()" } else { "#{tab.0}" },
                             onclick: move |_| {
                                 *selected_tab.write() = Some(tab.clone().1.unwrap());
                             },
@@ -52,7 +50,7 @@ pub fn Tabs() -> Element {
                                 word_wrap: "nowrap",
                                 overflow: "hidden",
                                 "{tab.0}"
-                            },
+                            }
                             button {
                                 onclick: move |_| {
                                     let _ = selected_tab.write().take();
@@ -61,7 +59,6 @@ pub fn Tabs() -> Element {
                                 "X"
                             }
                         }
-
                     }
                 }
                 div {
@@ -76,7 +73,9 @@ pub fn Tabs() -> Element {
             onclick: move |_| {
                 info!("adding tab");
                 let tabs_len = tabs.read().len();
-                let tab = rsx!(div {" a tab numbered {tabs_len}" });
+                let tab = rsx! {
+                    div { " a tab numbered {tabs_len}" }
+                };
                 tabs.write().push((format!("Tab {} abdefg", tabs_len), tab.clone()));
                 let _ = selected_tab.write().insert(tab.expect("tab rsx renders correctly"));
             },

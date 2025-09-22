@@ -6,7 +6,10 @@ use client_backend::{
     client::{Client, ClientProfile},
     ui::GroupUi,
 };
-use dioxus::prelude::*;
+use dioxus::{
+    desktop::{tao::platform::macos::WindowBuilderExtMacOS, WindowBuilder},
+    prelude::*,
+};
 use dioxus_logger::tracing::{error, info};
 use panels::{
     chat::{ChatPanel, ChatPanelProps},
@@ -14,6 +17,7 @@ use panels::{
     settings::{SettingsPanel, SettingsTab},
 };
 
+#[expect(unused)]
 use crate::components::tabs::Tabs;
 
 pub mod components;
@@ -34,14 +38,25 @@ fn main() {
     dioxus_logger::initialize_default();
 
     info!("Starting Dioxus app");
+    let window = WindowBuilder::new()
+        .with_titlebar_transparent(true)
+        .with_resizable(false)
+        .with_title("Licks!")
+        .with_always_on_top(false);
 
-    dioxus::launch(LoadingScreen)
+    let config = dioxus::desktop::Config::default().with_window(window);
+
+    dioxus::LaunchBuilder::desktop()
+        .with_cfg(config)
+        .launch(LoadingScreen);
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Tab {
     Groups,
+    #[expect(unused)]
     Contacts,
+    #[expect(unused)]
     Settings,
 }
 
@@ -104,7 +119,7 @@ fn LoadingScreen() -> Element {
 
 #[component]
 fn App() -> Element {
-    let mut tab = use_signal(|| Tab::Groups);
+    let tab = use_signal(|| Tab::Groups);
 
     let group_list: Signal<Vec<GroupUi>> = use_signal(|| {
         let group_ids = get_default_profile().get_all_group_ids().unwrap();
@@ -145,7 +160,7 @@ fn App() -> Element {
             }),
             ChatPanel(ChatPanelProps { selected_group }),
         ),
-        Tab::Contacts => (rsx!("Contacts tab"), rsx!("Contacts panel")),
+        Tab::Contacts => (rsx!( "Contacts tab" ), rsx!( "Contacts panel" )),
         Tab::Settings => (SettingsTab(), SettingsPanel()),
     };
 
@@ -163,38 +178,17 @@ fn App() -> Element {
                 width: "inherit",
                 height: "inherit",
                 max_width: "270px",
-                background_color: "var(--foreground)",
-                div { display: "flex", height: "34px", class: "tab-buttons",
-                    div {
-                        border: if tab.read().eq(&Tab::Groups) { "var(--line-medium) ridge var(--element-secondary)" },
-                        background_color: "var(--primary)",
-                        onclick: move |_| tab.set(Tab::Groups),
-                        b { "Groups" }
-                    }
-                    div {
-                        border: if tab.read().eq(&Tab::Contacts) { "var(--line-medium) ridge var(--element-secondary)" },
-                        background_color: "var(--secondary)",
-                        onclick: move |_| tab.set(Tab::Contacts),
-                        b { "Contacts" }
-                    }
-                    div {
-                        border: if tab.read().eq(&Tab::Settings) { "var(--line-medium) ridge var(--element-secondary)" },
-                        background_color: "var(--third)",
-                        onclick: move |_| tab.set(Tab::Settings),
-                        b { "Settings" }
-                    }
-                }
-                div { flex_grow: "1", overflow_y: "scroll", {tab_rsx} }
+                background_color: "var(--white-2)",
+                flex_grow: "1",
+                overflow_y: "scroll",
+                {tab_rsx}
             }
             div {
-                background_color: "var(--background)",
+                background_color: "var(--white-1)",
                 width: "inherit",
                 height: "inherit",
                 overflow: "hidden",
-                div {
-                    Tabs {}
-                    {panel_rsx}
-                }
+                {panel_rsx}
             }
         }
     }

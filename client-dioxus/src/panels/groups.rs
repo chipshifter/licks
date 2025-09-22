@@ -58,16 +58,17 @@ pub fn GroupsTab(
 
         rsx! {
             div {
-                padding: "8px",
                 display: "flex",
-                width: "100%",
                 max_height: "140px",
+                margin: "6px",
+                padding: "2px",
                 overflow: "hidden",
                 align_items: "center",
                 gap: "var(--padding-medium)",
-                background_color: if is_selected_group { "var(--element-focus)" } else { "var(--element-background)" },
+                background_color: if is_selected_group { "var(--white-1)" } else { "var(--white-3)" },
                 border_bottom: "2px solid red",
-                border: if is_selected_group { "var(--line-medium) ridge var(--element-deep)" },
+                border_radius: "var(--border-radius-md)",
+                border: if is_selected_group { "var(--border-md)" },
                 onclick: move |_| {
                     info!("Selecting group {group:?}");
                     *selected_group.write() = group.clone();
@@ -75,7 +76,7 @@ pub fn GroupsTab(
                 div {
                     min_width: "60px",
                     min_height: "60px",
-                    border_radius: "2px",
+                    border_radius: "var(--border-radius-md)",
                     padding: "var(--padding-large)",
                     margin_right: "6px",
                     background_color: "{group_color}",
@@ -93,6 +94,7 @@ pub fn GroupsTab(
                         overflow: "hidden",
                         white_space: "nowrap",
                         text_overflow: "ellipsis",
+                        height: "100%",
                         "{group.group_name}"
                     }
                     if let Some(msg) = last_message {

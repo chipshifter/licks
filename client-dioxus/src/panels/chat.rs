@@ -107,7 +107,7 @@ pub fn ChatPanel(selected_group: Signal<GroupUi>) -> Element {
             div {
                 display: "flex",
                 padding: "var(--padding-large)",
-                background_color: "var(--element-background)",
+                background_color: "var(--white-3)",
                 height: "50px",
                 overflow: "hidden",
                 width: "100%",
@@ -190,7 +190,7 @@ pub fn ChatPanel(selected_group: Signal<GroupUi>) -> Element {
                         background_color: Some("var(--primary)"),
                     }
                 }
-
+            
             }
         }
     }

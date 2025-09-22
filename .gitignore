@@ -18,3 +18,4 @@ lib/test_db/
 data/
 
 .vscode
+.DS_Store
